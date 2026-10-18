@@ -31,6 +31,10 @@ def _existing_seasons(db: duckdb.DuckDBPyConnection, table: str) -> set[int]:
 def _upsert(db: duckdb.DuckDBPyConnection, table: str, df: pl.DataFrame) -> None:
     existing = _existing_seasons(db, table)
     if existing:
+        # Delete the seasons we're about to re-insert so we don't duplicate rows
+        seasons_in_df = df.select("season").unique()["season"].to_list()
+        for s in seasons_in_df:
+            db.execute(f"DELETE FROM {table} WHERE season = {s}")
         db.execute(f"INSERT INTO {table} SELECT * FROM df")
     else:
         db.execute(f"CREATE OR REPLACE TABLE {table} AS SELECT * FROM df")
@@ -164,6 +168,39 @@ def build_fullname_to_gsis_map() -> dict[str, str]:
                 combined = f"{full} {last}".strip() if name_field == "first_name" else full
                 name_to_id[combined.lower()] = gsis_id
     return name_to_id
+
+
+def refresh_current_season(season: int) -> dict[str, int]:
+    """
+    Re-fetch player stats, snap counts, and schedules for the given season,
+    replacing any existing rows for that season. Call this on Monday after
+    the week's games finish to keep the feature data current.
+
+    Returns a dict of table → new row count.
+    """
+    counts = {}
+    try:
+        df = load_player_stats([season], force_refresh=True)
+        counts["player_stats_weekly"] = len(df.filter(__import__("polars").col("season") == season))
+    except Exception as e:
+        logger.warning(f"player_stats refresh failed: {e}")
+        counts["player_stats_weekly"] = 0
+
+    try:
+        df = load_snap_counts([season], force_refresh=True)
+        counts["snap_counts"] = len(df.filter(__import__("polars").col("season") == season))
+    except Exception as e:
+        logger.warning(f"snap_counts refresh failed: {e}")
+        counts["snap_counts"] = 0
+
+    try:
+        df = load_schedules([season], force_refresh=True)
+        counts["schedules"] = len(df.filter(__import__("polars").col("season") == season))
+    except Exception as e:
+        logger.warning(f"schedules refresh failed: {e}")
+        counts["schedules"] = 0
+
+    return counts
 
 
 def get_table_info() -> dict:

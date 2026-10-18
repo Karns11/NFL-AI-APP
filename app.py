@@ -35,6 +35,20 @@ app = Flask(__name__, template_folder="src/web/templates")
 app.register_blueprint(bp)
 
 
+def _scheduled_monday_stats():
+    """Monday 8 AM — pull latest NFL stats, snaps, schedules after weekend games."""
+    from src.predictions.predict import _CURRENT_SEASON
+    from src.ingestion.load_data import refresh_current_season
+    from src.web.pipeline import run_pipeline
+    log = logging.getLogger("src.web.pipeline")
+    log.info(f"Monday stats refresh: pulling {_CURRENT_SEASON} data...")
+    counts = refresh_current_season(_CURRENT_SEASON)
+    log.info(f"  Stats refreshed: {counts}")
+    # Rebuild projections with the fresh data (no LLM, preserve summaries)
+    run_pipeline(use_llm=False)
+    log.info("Monday stats refresh complete.")
+
+
 def _scheduled_injury_refresh():
     """Wed/Thu/Fri 9 AM — re-scrape injuries and update projections (no LLM)."""
     from src.web.pipeline import run_pipeline
@@ -51,6 +65,15 @@ def _scheduled_full_report():
 
 def start_scheduler():
     scheduler = BackgroundScheduler()
+
+    # Monday 8 AM — pull latest game stats after the weekend
+    scheduler.add_job(
+        _scheduled_monday_stats,
+        CronTrigger(day_of_week="mon", hour=8, minute=0),
+        id="monday_stats",
+        name="Monday stats refresh",
+        replace_existing=True,
+    )
 
     # Injury + projection refresh: Wed, Thu, Fri at 9 AM local time
     scheduler.add_job(
@@ -104,7 +127,7 @@ def main():
         print(f"  No cached report found.")
         print(f"  Click 'Generate Report' in the browser, or restart with --generate.")
 
-    print(f"  Scheduled: injury refresh Wed/Thu/Fri 9am, full report Fri 6am")
+    print(f"  Scheduled: stats Mon 8am, injury refresh Wed/Thu/Fri 9am, full report Fri 6am")
     print(f"  Press Ctrl+C to stop.\n")
 
     if not args.no_browser:
