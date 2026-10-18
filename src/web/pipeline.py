@@ -69,6 +69,16 @@ def run_pipeline(
     bundle_cache = {}
     serialized_leagues = []
 
+    # Build a lookup of existing LLM summaries from the prior cache so a
+    # no-LLM refresh doesn't wipe out summaries that were already generated.
+    prior_summaries: dict[str, str] = {}
+    prior = report_cache.get()
+    if prior and not use_llm:
+        for prior_league in prior.leagues:
+            for p in prior_league.get("my_roster", []):
+                if p.get("llm_summary") and p.get("name"):
+                    prior_summaries[p["name"].lower()] = p["llm_summary"]
+
     for league in leagues:
         report, starter_cards, bench_cards, opp_cards = build_full_league_report(
             league=league,
@@ -95,6 +105,9 @@ def run_pipeline(
             d = _serialize_card(card)
             if card.name.lower() in alert_names:
                 d["start_sit_alert"] = True
+            # Preserve prior LLM summary if this run didn't generate one
+            if not d["llm_summary"] and card.name.lower() in prior_summaries:
+                d["llm_summary"] = prior_summaries[card.name.lower()]
             all_my_cards.append(d)
 
         all_my_cards.sort(key=lambda c: c["predicted"] or 0, reverse=True)
