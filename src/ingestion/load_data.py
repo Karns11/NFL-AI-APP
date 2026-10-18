@@ -140,6 +140,32 @@ def load_player_id_map() -> pl.DataFrame:
     return id_map
 
 
+def build_fullname_to_gsis_map() -> dict[str, str]:
+    """
+    Build a lookup from full player name → gsis_id using nflreadpy.load_players().
+    Keys are lowercased for case-insensitive matching.
+    e.g. {"bijan robinson": "00-0038542", "brian robinson": "00-0037746"}
+
+    This is the preferred player resolution method — bypasses abbreviated name
+    ambiguity (e.g. "B.Robinson" could be Bijan or Brian).
+    """
+    import nflreadpy as nfl
+
+    players = nfl.load_players()
+    name_to_id: dict[str, str] = {}
+    for row in players.iter_rows(named=True):
+        gsis_id = row.get("gsis_id")
+        if not gsis_id:
+            continue
+        for name_field in ("display_name", "football_name", "first_name"):
+            full = row.get(name_field, "") or ""
+            last = row.get("last_name", "") or ""
+            if full and last:
+                combined = f"{full} {last}".strip() if name_field == "first_name" else full
+                name_to_id[combined.lower()] = gsis_id
+    return name_to_id
+
+
 def get_table_info() -> dict:
     """Return row counts for all loaded tables."""
     db = get_db()

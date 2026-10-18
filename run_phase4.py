@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.news.db import init_db
 from src.news.injury_scraper import run_scrape
 from src.news.rss_fetcher import fetch_all_feeds
-from src.predictions.predict import predict_and_display, build_feature_df
+from src.predictions.predict import predict_and_display, build_feature_df, get_current_week
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,7 +51,7 @@ CURRENT_SEASON = _today.year if _today.month >= 9 else _today.year - 1
 
 def main():
     parser = argparse.ArgumentParser(description="NFL Fantasy AI — Phase 4 Weekly Pipeline")
-    parser.add_argument("--week", "-w", type=int, required=True, help="NFL week number")
+    parser.add_argument("--week", "-w", type=int, default=None, help="NFL week number (default: auto-detect current week)")
     parser.add_argument("--season", "-s", type=int, default=CURRENT_SEASON, help="Season year")
     parser.add_argument(
         "--players", "-p", nargs="+", default=None,
@@ -62,11 +62,12 @@ def main():
     parser.add_argument("--scrape-only", action="store_true", help="Only scrape data, don't run predictions")
 
     args = parser.parse_args()
+    week = args.week or get_current_week(args.season)
     players = args.players or DEFAULT_PLAYERS
 
     print("\n" + "="*60)
     print(f"  NFL FANTASY AI — PHASE 4")
-    print(f"  Season {args.season}  |  Week {args.week}")
+    print(f"  Season {args.season}  |  Week {week}")
     print("="*60)
 
     # 1. Initialize DB
@@ -74,8 +75,8 @@ def main():
 
     # 2. Scrape fresh injury + news data
     if not args.no_scrape:
-        print(f"\n[1/3] Scraping injury report (Week {args.week})...")
-        n_injuries = run_scrape(args.week, args.season)
+        print(f"\n[1/3] Scraping injury report (Week {week})...")
+        n_injuries = run_scrape(week, args.season)
         print(f"  {n_injuries} injury records stored")
 
         print(f"\n[2/3] Fetching news from RSS feeds...")
@@ -99,7 +100,7 @@ def main():
     for player in players:
         result = predict_and_display(
             player_name=player,
-            week=args.week,
+            week=week,
             season=args.season,
             use_llm=use_llm,
             refresh_news=False,  # Already refreshed above
@@ -112,7 +113,7 @@ def main():
     # 4. Summary table
     if results:
         print("\n" + "="*60)
-        print(f"  WEEK {args.week} SUMMARY")
+        print(f"  WEEK {week} SUMMARY")
         print("="*60)
         print(f"\n  {'Player':<22} {'Pos':<4} {'Floor':>6} {'Med':>6} {'Ceil':>6}  {'Status':<12}  Rec.")
         print(f"  {'-'*70}")

@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.ingestion.load_data import (
     load_player_stats, load_snap_counts, load_schedules, load_player_id_map,
+    build_fullname_to_gsis_map,
 )
 from src.features.engineer import build_features, drop_leaky_rows, get_feature_columns
 from src.features.phase2 import build_phase2_features, get_phase2_feature_columns
@@ -46,6 +47,34 @@ _CURRENT_YEAR = _dt.date.today().year
 # NFL season starts in September; before that, current year's season hasn't started
 _CURRENT_SEASON = _CURRENT_YEAR if _dt.date.today().month >= 9 else _CURRENT_YEAR - 1
 DEFAULT_SEASONS = list(range(2016, _CURRENT_SEASON + 1))
+
+
+def get_current_week(season: int | None = None) -> int:
+    """
+    Detect the current NFL week based on today's date and the schedule.
+    Returns the week whose games include or are closest after today.
+    Falls back to week 1 if no schedule data is available.
+    """
+    if season is None:
+        season = _CURRENT_SEASON
+    try:
+        import nflreadpy as nfl
+        import polars as pl
+        today_str = _dt.date.today().isoformat()
+        sched = nfl.load_schedules([season])
+        week_dates = (
+            sched.filter(pl.col("game_type") == "REG")
+            .group_by("week")
+            .agg(pl.col("gameday").min().alias("first_game"))
+            .sort("week")
+        )
+        # Current week = last week whose first game is on or before today
+        past = week_dates.filter(pl.col("first_game") <= today_str)
+        if len(past) == 0:
+            return 1
+        return past["week"].max()
+    except Exception:
+        return 1
 
 
 def load_phase2_bundle(position: str):
@@ -91,6 +120,7 @@ def get_player_features(
     seasons: list[int] | None = None,
     feature_df: pl.DataFrame | None = None,
     schedules_df: pl.DataFrame | None = None,
+    team: str | None = None,
 ) -> tuple[dict | None, str | None, str | None]:
     """
     Build feature dict for a player for a specific week.
@@ -105,20 +135,46 @@ def get_player_features(
     df = feature_df
     schedules = schedules_df
 
-    # Find the player — try exact match first, then fuzzy
     name_lower = player_name.lower()
-    player_df = df.filter(
-        pl.col("player_name").str.to_lowercase().str.contains(name_lower)
-    )
+    parts = name_lower.split()
 
-    if len(player_df) == 0:
-        # Try last name only
-        parts = name_lower.split()
-        if len(parts) >= 2:
-            last = parts[-1]
-            player_df = df.filter(
-                pl.col("player_name").str.to_lowercase().str.contains(last)
-            )
+    # Strategy 1: gsis_id lookup via full name → bypasses all abbreviation issues
+    # (handles "Bijan Robinson" vs "Brian Robinson" on same team perfectly)
+    name_map = build_fullname_to_gsis_map()
+    gsis_id = name_map.get(name_lower)
+    if gsis_id:
+        player_df = df.filter(pl.col("player_id") == gsis_id)
+
+    # Strategy 2: player_display_name contains full name (nflreadpy stores this too)
+    if not gsis_id or len(player_df) == 0:
+        player_df = df.filter(
+            pl.col("player_display_name").str.to_lowercase().str.contains(name_lower)
+        )
+
+    # Strategy 3: abbreviated name substring (e.g. "J.Williams")
+    if len(player_df) == 0 and len(parts) >= 2:
+        first_initial = parts[0][0]
+        last = parts[-1]
+        abbrev = f"{first_initial}.{last}"
+        player_df = df.filter(
+            pl.col("player_name").str.to_lowercase().str.contains(abbrev)
+        )
+        # Use team to disambiguate if multiple players match the abbreviation
+        if team and player_df["player_id"].n_unique() > 1:
+            team_filtered = player_df.filter(pl.col("team") == team)
+            if len(team_filtered) > 0:
+                player_df = team_filtered
+
+    # Strategy 4: last name only (broadest fallback)
+    if len(player_df) == 0 and len(parts) >= 2:
+        last = parts[-1]
+        player_df = df.filter(
+            pl.col("player_name").str.to_lowercase().str.contains(last)
+        )
+        if team and player_df["player_id"].n_unique() > 1:
+            team_filtered = player_df.filter(pl.col("team") == team)
+            if len(team_filtered) > 0:
+                player_df = team_filtered
 
     if len(player_df) == 0:
         return None, None, None
