@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFL Fantasy AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #1a1d2e;
+      border-bottom: 1px solid #2d3148;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header h1 { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
+    .header .meta { font-size: 12px; color: #64748b; margin-left: auto; }
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-secondary { background: #1e2236; color: #94a3b8; border: 1px solid #2d3148; }
+    .btn-secondary:hover { background: #2d3148; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    /* ── League card ── */
+    .league-card {
+      background: #1a1d2e;
+      border: 1px solid #2d3148;
+      border-radius: 10px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+    .league-header {
+      padding: 14px 20px;
+      background: #1e2236;
+      border-bottom: 1px solid #2d3148;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .league-name { font-size: 15px; font-weight: 600; color: #fff; }
+    .league-meta { font-size: 12px; color: #64748b; }
+    .matchup-chip {
+      margin-left: auto;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .win  { background: #14532d; color: #4ade80; }
+    .loss { background: #450a0a; color: #f87171; }
+
+    /* ── Section labels ── */
+    .section-label {
+      padding: 8px 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #475569;
+      background: #161926;
+      border-bottom: 1px solid #2d3148;
+    }
+
+    /* ── Player table ── */
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #475569;
+      border-bottom: 1px solid #2d3148;
+      background: #161926;
+    }
+    th.num { text-align: right; }
+    td { padding: 10px 12px; border-bottom: 1px solid #1e2236; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1e2236; }
+
+    /* ── Player name cell ── */
+    .player-name { font-weight: 600; color: #f1f5f9; }
+    .player-pos  { font-size: 11px; color: #64748b; margin-top: 1px; }
+    .starter-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #3b82f6;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── Projection numbers ── */
+    .proj-cell { text-align: right; white-space: nowrap; }
+    .proj-med  { font-weight: 700; color: #f1f5f9; font-size: 15px; }
+    .proj-range { font-size: 11px; color: #475569; margin-top: 2px; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-injury-Q  { background: #78350f; color: #fcd34d; }
+    .badge-injury-D  { background: #7c2d12; color: #fb923c; }
+    .badge-injury-Out, .badge-injury-IR { background: #450a0a; color: #f87171; }
+    .badge-start     { background: #14532d; color: #4ade80; }
+
+    /* ── SHAP drivers ── */
+    .shap { font-size: 11px; margin-top: 4px; }
+    .shap-pos { color: #4ade80; }
+    .shap-neg { color: #f87171; }
+
+    /* ── LLM summary ── */
+    .summary-toggle {
+      font-size: 11px;
+      color: #3b82f6;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-top: 4px;
+    }
+    .summary-toggle:hover { text-decoration: underline; }
+    .summary-text {
+      display: none;
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: #161926;
+      border-radius: 6px;
+      border-left: 2px solid #3b82f6;
+      line-height: 1.6;
+    }
+    .summary-text.open { display: block; }
+
+    /* ── Empty state ── */
+    .empty {
+      padding: 48px;
+      text-align: center;
+      color: #475569;
+    }
+    .empty h2 { font-size: 18px; margin-bottom: 8px; color: #64748b; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: none;
+      width: 14px; height: 14px;
+      border: 2px solid #3b82f6;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+    #toast.ok   { background: #14532d; color: #4ade80; }
+    #toast.err  { background: #450a0a; color: #f87171; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>NFL Fantasy AI</h1>
+  {% if cached %}
+    <span class="meta">Week {{ cached.week }} · {{ cached.season }} · {{ cached.username }}</span>
+    {% if age_str %}
+      <span class="meta">Updated {{ age_str }}</span>
+    {% endif %}
+    <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
+      Refresh  <span class="spinner" id="spin-refresh"></span>
+    </button>
+    <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
+      Refresh + AI  <span class="spinner" id="spin-ai"></span>
+    </button>
+  {% endif %}
+</div>
+
+<div class="container">
+{% if not cached %}
+  <div class="empty">
+    <h2>No report yet</h2>
+    <p>Click "Generate Report" to run the pipeline for the first time.</p>
+    <br>
+    <button class="btn btn-primary" onclick="doRefresh(true)">Generate Report</button>
+  </div>
+
+{% else %}
+  {% for league in cached.leagues %}
+  {% set diff = league.my_projected_total - league.opp_projected_total %}
+  <div class="league-card">
+    <div class="league-header">
+      <div>
+        <div class="league-name">{{ league.league_name }}</div>
+        <div class="league-meta">{{ league.scoring_format }} · Week {{ league.week }}</div>
+      </div>
+      <div class="matchup-chip {{ 'win' if diff >= 0 else 'loss' }}">
+        {{ "▲" if diff >= 0 else "▼" }}
+        You {{ league.my_projected_total }} pts  vs  {{ league.opp_name }} {{ league.opp_projected_total }} pts
+        ({{ "%+.1f"|format(diff) }})
+      </div>
+    </div>
+
+    <!-- My Roster -->
+    <div class="section-label">My Roster</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30%">Player</th>
+          <th>Team</th>
+          <th>Status</th>
+          <th class="num" style="width:22%">Floor / Med / Ceil</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in league.my_roster %}
+        <tr>
+          <td>
+            <div class="player-name">
+              {% if p.is_starter %}<span class="starter-dot" title="Currently starting"></span>{% endif %}
+              {{ p.name }}
+              {% if p.start_sit_alert %}
+                <span class="badge badge-start" title="Start/Sit alert">START</span>
+              {% endif %}
+            </div>
+            <div class="player-pos">{{ p.position }}</div>
+            {% if p.shap_positive or p.shap_negative %}
+            <div class="shap">
+              {% for feat, val in (p.shap_positive or [])[:2] %}
+                <span class="shap-pos">▲{{ "%.1f"|format(val) }} {{ feat.replace("fp_roll4_mean","Form").replace("fp_ewm","Form(EWM)").replace("target_share_roll4","TgtShr").replace("target_share_ewm","TgtShr(EWM)").replace("snap_pct_roll3","Snap%").replace("snap_pct_ewm","Snap%(EWM)").replace("team_implied_total","ImpliedTotal").replace("spread_line","Spread").replace("opp_fp_allowed_roll4","OppDEF").replace("_"," ") }}</span>
+              {% endfor %}
+              {% for feat, val in (p.shap_negative or [])[:1] %}
+                <span class="shap-neg"> ▼{{ "%.1f"|format(val|abs) }} {{ feat.replace("fp_roll4_mean","Form").replace("fp_ewm","Form(EWM)").replace("target_share_roll4","TgtShr").replace("target_share_ewm","TgtShr(EWM)").replace("snap_pct_roll3","Snap%").replace("snap_pct_ewm","Snap%(EWM)").replace("team_implied_total","ImpliedTotal").replace("spread_line","Spread").replace("opp_fp_allowed_roll4","OppDEF").replace("_"," ") }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if p.llm_summary %}
+            <button class="summary-toggle" onclick="toggleSummary(this)">▸ AI summary</button>
+            <div class="summary-text">{{ p.llm_summary }}</div>
+            {% endif %}
+          </td>
+          <td>{{ p.team }}</td>
+          <td>
+            {% if p.injury_status %}
+              <span class="badge badge-injury-{{ p.injury_status }}">{{ p.injury_status }}</span>
+            {% endif %}
+          </td>
+          <td class="proj-cell">
+            {% if p.predicted is not none %}
+              <div class="proj-med">{{ "%.1f"|format(p.predicted) }}</div>
+              <div class="proj-range">{{ "%.1f"|format(p.floor) }} – {{ "%.1f"|format(p.ceiling) }}</div>
+            {% else %}
+              <div style="color:#475569">—</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Opponent Starters -->
+    {% if league.opp_starters %}
+    <div class="section-label">Opponent: {{ league.opp_name }}</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30%">Player</th>
+          <th>Team</th>
+          <th>Status</th>
+          <th class="num" style="width:22%">Floor / Med / Ceil</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in league.opp_starters %}
+        <tr>
+          <td>
+            <div class="player-name">{{ p.name }}</div>
+            <div class="player-pos">{{ p.position }}</div>
+          </td>
+          <td>{{ p.team }}</td>
+          <td>
+            {% if p.injury_status %}
+              <span class="badge badge-injury-{{ p.injury_status }}">{{ p.injury_status }}</span>
+            {% endif %}
+          </td>
+          <td class="proj-cell">
+            {% if p.predicted is not none %}
+              <div class="proj-med">{{ "%.1f"|format(p.predicted) }}</div>
+              <div class="proj-range">{{ "%.1f"|format(p.floor) }} – {{ "%.1f"|format(p.ceiling) }}</div>
+            {% else %}
+              <div style="color:#475569">—</div>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+{% endif %}
+</div>
+
+<div id="toast"></div>
+
+<script>
+function toggleSummary(btn) {
+  const el = btn.nextElementSibling;
+  el.classList.toggle("open");
+  btn.textContent = el.classList.contains("open") ? "▾ AI summary" : "▸ AI summary";
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "show " + type;
+  setTimeout(() => { t.className = ""; }, 3000);
+}
+
+function doRefresh(withAI) {
+  const btnRefresh = document.getElementById("btn-refresh");
+  const btnAI = document.getElementById("btn-refresh-ai");
+  const spin = document.getElementById(withAI ? "spin-ai" : "spin-refresh");
+
+  if (btnRefresh) btnRefresh.disabled = true;
+  if (btnAI) btnAI.disabled = true;
+  if (spin) spin.style.display = "inline-block";
+
+  const url = withAI ? "/api/refresh-full" : "/api/refresh";
+  fetch(url, { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === "ok") {
+        showToast("Report updated", "ok");
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showToast("Error: " + data.message, "err");
+      }
+    })
+    .catch(e => showToast("Request failed", "err"))
+    .finally(() => {
+      if (btnRefresh) btnRefresh.disabled = false;
+      if (btnAI) btnAI.disabled = false;
+      if (spin) spin.style.display = "none";
+    });
+}
+</script>
+</body>
+</html>
