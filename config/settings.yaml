@@ -1,0 +1,67 @@
+# NFL Fantasy AI — Settings
+
+project:
+  name: nfl-fantasy-ai
+  data_dir: data
+  db_dir: data/db
+  raw_dir: data/raw
+  models_dir: models
+  reports_dir: reports
+
+data:
+  # Seasons to use for training/validation
+  train_seasons_start: 2016
+  train_seasons_end: 2024
+  # Minimum games played in a season for a player to be included
+  min_games_played: 4
+
+modeling:
+  positions: [QB, RB, WR, TE]
+  quantiles: [0.1, 0.5, 0.9]
+  # Walk-forward: number of seasons to use as initial training window
+  min_train_seasons: 4
+  random_seed: 42
+
+scoring:
+  # Half-PPR (default; easy to swap)
+  half_ppr:
+    pass_yd: 0.04        # 1 pt per 25 yards
+    pass_td: 4.0
+    pass_int: -1.0
+    rush_yd: 0.1         # 1 pt per 10 yards
+    rush_td: 6.0
+    rec: 0.5             # half PPR
+    rec_yd: 0.1
+    rec_td: 6.0
+    fumble_lost: -2.0
+    two_pt: 2.0
+
+  ppr:
+    pass_yd: 0.04
+    pass_td: 4.0
+    pass_int: -1.0
+    rush_yd: 0.1
+    rush_td: 6.0
+    rec: 1.0
+    rec_yd: 0.1
+    rec_td: 6.0
+    fumble_lost: -2.0
+    two_pt: 2.0
+
+  standard:
+    pass_yd: 0.04
+    pass_td: 4.0
+    pass_int: -1.0
+    rush_yd: 0.1
+    rush_td: 6.0
+    rec: 0.0
+    rec_yd: 0.1
+    rec_td: 6.0
+    fumble_lost: -2.0
+    two_pt: 2.0
+
+# API keys loaded from .env
+apis:
+  odds_api_key: ${ODDS_API_KEY}
+  anthropic_api_key: ${ANTHROPIC_API_KEY}
+  sleeper_league_id: ${SLEEPER_LEAGUE_ID}

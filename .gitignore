@@ -1,0 +1,40 @@
+# Environment / secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Data — regenerable by running the pipeline
+data/db/*.duckdb
+data/raw/
+
+# Models — regenerable by running run_phase2.py
+models/*.joblib
+
+# App state DB — regenerable
+data/db/app.db
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# IDE / local tooling
+.vscode/
+.idea/
+*.swp
+.claude/
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Reports (generated output)
+reports/
