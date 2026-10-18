@@ -76,7 +76,7 @@ def start_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description="NFL Fantasy AI Web App")
-    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--generate", action="store_true",
                         help="Generate a fresh report on startup (with LLM)")
