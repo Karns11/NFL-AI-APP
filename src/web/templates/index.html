@@ -113,9 +113,24 @@
     }
 
     /* ── Projection numbers ── */
-    .proj-cell { text-align: right; white-space: nowrap; }
-    .proj-med  { font-weight: 700; color: #f1f5f9; font-size: 15px; }
-    .proj-range { font-size: 11px; color: #475569; margin-top: 2px; }
+    .proj-cell  { text-align: right; white-space: nowrap; }
+    .proj-med   { font-weight: 700; color: #f1f5f9; font-size: 15px; display: inline; }
+    .proj-label { font-size: 10px; color: #475569; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; margin-right: 3px; }
+    .proj-sub   { font-size: 11px; color: #64748b; margin-top: 3px; }
+
+    /* ── Opponent section ── */
+    .opp-section { border-left: 3px solid #c2410c; }
+    .section-label-opp {
+      padding: 8px 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #fb923c;
+      background: #1c1410;
+      border-bottom: 1px solid #3d2010;
+    }
+    .opp-section tr:hover td { background: #1c1a14; }
 
     /* ── Badges ── */
     .badge {
@@ -136,18 +151,7 @@
     .shap-neg { color: #f87171; }
 
     /* ── LLM summary ── */
-    .summary-toggle {
-      font-size: 11px;
-      color: #3b82f6;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0;
-      margin-top: 4px;
-    }
-    .summary-toggle:hover { text-decoration: underline; }
     .summary-text {
-      display: none;
       font-size: 12px;
       color: #94a3b8;
       margin-top: 6px;
@@ -157,7 +161,6 @@
       border-left: 2px solid #3b82f6;
       line-height: 1.6;
     }
-    .summary-text.open { display: block; }
 
     /* ── Empty state ── */
     .empty {
@@ -248,7 +251,7 @@
           <th style="width:30%">Player</th>
           <th>Team</th>
           <th>Status</th>
-          <th class="num" style="width:22%">Floor / Med / Ceil</th>
+          <th class="num" style="width:22%">Projection</th>
         </tr>
       </thead>
       <tbody>
@@ -274,7 +277,6 @@
             </div>
             {% endif %}
             {% if p.llm_summary %}
-            <button class="summary-toggle" onclick="toggleSummary(this)">▸ AI summary</button>
             <div class="summary-text">{{ p.llm_summary }}</div>
             {% endif %}
           </td>
@@ -286,8 +288,8 @@
           </td>
           <td class="proj-cell">
             {% if p.predicted is not none %}
-              <div class="proj-med">{{ "%.1f"|format(p.predicted) }}</div>
-              <div class="proj-range">{{ "%.1f"|format(p.floor) }} – {{ "%.1f"|format(p.ceiling) }}</div>
+              <div><span class="proj-label">Proj</span><span class="proj-med">{{ "%.1f"|format(p.predicted) }}</span></div>
+              <div class="proj-sub"><span class="proj-label">Floor</span>{{ "%.1f"|format(p.floor) }}&nbsp;&nbsp;<span class="proj-label">Ceil</span>{{ "%.1f"|format(p.ceiling) }}</div>
             {% else %}
               <div style="color:#475569">—</div>
             {% endif %}
@@ -299,14 +301,15 @@
 
     <!-- Opponent Starters -->
     {% if league.opp_starters %}
-    <div class="section-label">Opponent: {{ league.opp_name }}</div>
+    <div class="opp-section">
+    <div class="section-label-opp">Opponent: {{ league.opp_name }}</div>
     <table>
       <thead>
         <tr>
           <th style="width:30%">Player</th>
           <th>Team</th>
           <th>Status</th>
-          <th class="num" style="width:22%">Floor / Med / Ceil</th>
+          <th class="num" style="width:22%">Projection</th>
         </tr>
       </thead>
       <tbody>
@@ -324,8 +327,8 @@
           </td>
           <td class="proj-cell">
             {% if p.predicted is not none %}
-              <div class="proj-med">{{ "%.1f"|format(p.predicted) }}</div>
-              <div class="proj-range">{{ "%.1f"|format(p.floor) }} – {{ "%.1f"|format(p.ceiling) }}</div>
+              <div><span class="proj-label">Proj</span><span class="proj-med">{{ "%.1f"|format(p.predicted) }}</span></div>
+              <div class="proj-sub"><span class="proj-label">Floor</span>{{ "%.1f"|format(p.floor) }}&nbsp;&nbsp;<span class="proj-label">Ceil</span>{{ "%.1f"|format(p.ceiling) }}</div>
             {% else %}
               <div style="color:#475569">—</div>
             {% endif %}
@@ -334,6 +337,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% endif %}
 
   </div>
@@ -344,12 +348,6 @@
 <div id="toast"></div>
 
 <script>
-function toggleSummary(btn) {
-  const el = btn.nextElementSibling;
-  el.classList.toggle("open");
-  btn.textContent = el.classList.contains("open") ? "▾ AI summary" : "▸ AI summary";
-}
-
 function showToast(msg, type) {
   const t = document.getElementById("toast");
   t.textContent = msg;
