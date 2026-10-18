@@ -162,6 +162,20 @@
       line-height: 1.6;
     }
 
+    /* ── Freshness bar ── */
+    .freshness-bar {
+      background: #13151f;
+      border-bottom: 1px solid #2d3148;
+      padding: 8px 24px;
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .freshness-item { display: flex; align-items: baseline; gap: 6px; }
+    .freshness-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: #475569; }
+    .freshness-when  { font-size: 12px; color: #94a3b8; }
+    .freshness-detail { font-size: 11px; color: #475569; }
+
     /* ── Empty state ── */
     .empty {
       padding: 48px;
@@ -216,6 +230,16 @@
       Refresh + AI  <span class="spinner" id="spin-ai"></span>
     </button>
   {% endif %}
+</div>
+
+<div class="freshness-bar">
+  {% for key, item in freshness.items() %}
+  <div class="freshness-item">
+    <span class="freshness-label">{{ item.label }}</span>
+    <span class="freshness-when">{{ item.when }}</span>
+    {% if item.detail %}<span class="freshness-detail">· {{ item.detail }}</span>{% endif %}
+  </div>
+  {% endfor %}
 </div>
 
 <div class="container">
