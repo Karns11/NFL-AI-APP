@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 import polars as pl
 
-from src.news.injury_scraper import get_player_injury
+from src.news.injury_scraper import get_player_injury, get_team_injuries
 from src.news.rss_fetcher import get_player_news
 from src.llm.summarize import summarize_player, _fallback_summary
 from src.fantasy.sleeper import get_my_matchup
@@ -153,11 +153,18 @@ def build_full_league_report(
         llm_summary = None
         if use_llm and position in MODEL_POSITIONS and name:
             news_items = get_player_news(name, max_items=4)
+            # Fetch teammate injuries to give LLM context about role elevation/reduction
+            teammate_injuries = None
+            if team:
+                all_team_injuries = get_team_injuries(team, week, season, exclude_name=name)
+                # Only pass players with an actual injury designation, not blank rows
+                teammate_injuries = [t for t in all_team_injuries if t.get("status")] or None
             llm_summary = summarize_player(
                 player_name=name, week=week, season=season,
                 position=position, team=team,
                 injury_record=injury,
                 news_items=news_items,
+                teammate_injuries=teammate_injuries,
             )
 
         card = FullPlayerCard(

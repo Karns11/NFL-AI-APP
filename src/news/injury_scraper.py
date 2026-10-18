@@ -240,17 +240,55 @@ def get_player_injury(player_name: str, week: int, season: int) -> dict | None:
     return dict(row) if row else None
 
 
+def get_team_injuries(team: str, week: int, season: int, exclude_name: str | None = None) -> list[dict]:
+    """
+    Return all injury records for a team in a given week.
+    Optionally exclude one player by name (the player being summarized).
+    """
+    init_db()
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM injury_reports
+            WHERE season = ? AND week = ?
+              AND lower(team) LIKE lower(?)
+            ORDER BY player_name
+            """,
+            (season, week, f"%{team}%"),
+        ).fetchall()
+
+    results = [dict(r) for r in rows]
+    if exclude_name:
+        exclude_lower = exclude_name.lower()
+        results = [r for r in results if exclude_lower not in r.get("player_name", "").lower()]
+    return results
+
+
 def run_scrape(week: int, season: int, use_nflreadpy_fallback: bool = True) -> int:
     """
-    Full scrape pipeline: try NFL.com first, fall back to nflreadpy.
+    Full scrape pipeline: nflreadpy first (clean team abbreviations), then
+    supplement with NFL.com for any additional records.
     Returns total records saved.
     """
     logger.info(f"Scraping injuries: Season {season} Week {week}")
-    records = scrape_nfl_injuries(week, season)
 
-    if not records and use_nflreadpy_fallback:
-        logger.info("  NFL.com scrape empty — trying nflreadpy fallback")
-        records = fetch_injuries_nflreadpy(week, season)
+    # nflreadpy primary — returns proper team abbreviations (ARI, ATL, etc.)
+    records = fetch_injuries_nflreadpy(week, season)
+    if records:
+        logger.info(f"  nflreadpy: {len(records)} injury records")
+    else:
+        # Fall back to NFL.com scrape
+        logger.info("  nflreadpy empty — trying NFL.com scrape")
+        records = scrape_nfl_injuries(week, season)
+        if records:
+            logger.info(f"  NFL.com: {len(records)} injury records")
+
+    # Clear stale data for this week before saving so bad team names don't persist
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM injury_reports WHERE season = ? AND week = ?",
+            (season, week),
+        )
 
     n = save_injuries(records, week, season)
     logger.info(f"  Saved {n} injury records")

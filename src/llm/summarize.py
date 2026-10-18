@@ -37,6 +37,7 @@ def _build_prompt(
     team: str | None,
     injury_record: dict | None,
     news_items: list[dict],
+    teammate_injuries: list[dict] | None = None,
 ) -> str:
     """Build the prompt for Haiku summarization."""
     lines = [
@@ -59,6 +60,18 @@ def _build_prompt(
     else:
         lines.append("\nInjury Report: Not listed on injury report (healthy)")
 
+    if teammate_injuries:
+        lines.append("\nTeammate Injuries (same team this week):")
+        for t in teammate_injuries:
+            t_name = t.get("player_name", "Unknown")
+            t_pos = t.get("position", "")
+            t_status = t.get("status", "")
+            t_injury = t.get("injury", "")
+            detail = f"  - {t_name} ({t_pos}): {t_status}"
+            if t_injury:
+                detail += f" — {t_injury}"
+            lines.append(detail)
+
     if news_items:
         lines.append("\nRecent News:")
         for item in news_items[:4]:
@@ -72,7 +85,7 @@ def _build_prompt(
     lines.append(
         "\nTask: Write a 2-3 sentence fantasy football injury and news summary for this player. "
         "Focus on: (1) current availability/status, (2) any injury concern and expected impact on production, "
-        "(3) any relevant news affecting their fantasy value this week. "
+        "(3) any relevant teammate injuries that elevate or reduce this player's role this week. "
         "Be concise, direct, and actionable. Do NOT include player/team/position headers — just the summary text."
     )
 
@@ -87,6 +100,7 @@ def summarize_player(
     team: str | None = None,
     injury_record: dict | None = None,
     news_items: list[dict] | None = None,
+    teammate_injuries: list[dict] | None = None,
     force_refresh: bool = False,
 ) -> str:
     """
@@ -112,7 +126,7 @@ def summarize_player(
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        prompt = _build_prompt(player_name, week, season, position, team, injury_record, news_items or [])
+        prompt = _build_prompt(player_name, week, season, position, team, injury_record, news_items or [], teammate_injuries)
 
         message = client.messages.create(
             model=MODEL,
