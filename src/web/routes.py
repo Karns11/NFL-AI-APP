@@ -48,7 +48,9 @@ def get_data_freshness() -> dict:
         from src.ingestion.load_data import get_db
         db = get_db()
         row = db.execute(
-            "SELECT MAX(season), MAX(week) FROM player_stats_weekly"
+            """SELECT season, MAX(week) FROM player_stats_weekly
+               WHERE season = (SELECT MAX(season) FROM player_stats_weekly)
+               GROUP BY season"""
         ).fetchone()
         if row and row[0]:
             freshness["nfl_stats"]["detail"] = f"Through {row[0]} Wk {row[1]}"
