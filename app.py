@@ -66,12 +66,12 @@ def _scheduled_full_report():
 def start_scheduler():
     scheduler = BackgroundScheduler()
 
-    # Monday 8 AM — pull latest game stats after the weekend
+    # Tuesday 8 AM — pull latest game stats after all weekend + MNF games finish
     scheduler.add_job(
         _scheduled_monday_stats,
-        CronTrigger(day_of_week="mon", hour=8, minute=0),
+        CronTrigger(day_of_week="tue", hour=8, minute=0),
         id="monday_stats",
-        name="Monday stats refresh",
+        name="Tuesday stats refresh",
         replace_existing=True,
     )
 
@@ -127,7 +127,7 @@ def main():
         print(f"  No cached report found.")
         print(f"  Click 'Generate Report' in the browser, or restart with --generate.")
 
-    print(f"  Scheduled: stats Mon 8am, injury refresh Wed/Thu/Fri 9am, full report Fri 6am")
+    print(f"  Scheduled: stats Tue 8am, injury refresh Wed/Thu/Fri 9am, full report Fri 6am")
     print(f"  Press Ctrl+C to stop.\n")
 
     if not args.no_browser:
