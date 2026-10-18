@@ -282,10 +282,20 @@ def predict_player(bundle: PositionModelBundle, player_features: dict) -> dict:
     shap_dict = dict(zip(bundle.features, shap_vals))
     top_shap = sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)
 
+    predicted = max(0.0, ensemble_median)
+    floor = max(0.0, float(lgb_q10))
+    ceiling = max(0.0, float(lgb_q90))
+
+    # Enforce floor ≤ predicted ≤ ceiling.
+    # The ensemble median (lgb + xgb meta-learner) is independent of the raw
+    # lgb quantile models, so they can cross. Clamp rather than discard either.
+    floor = min(floor, predicted)
+    ceiling = max(ceiling, predicted)
+
     return {
-        "predicted": round(max(0.0, ensemble_median), 1),
-        "floor": round(max(0.0, float(lgb_q10)), 1),
-        "ceiling": round(max(0.0, float(lgb_q90)), 1),
+        "predicted": round(predicted, 1),
+        "floor": round(floor, 1),
+        "ceiling": round(ceiling, 1),
         "shap_top_positive": [(k, round(v, 2)) for k, v in top_shap if v > 0][:5],
         "shap_top_negative": [(k, round(v, 2)) for k, v in top_shap if v < 0][:5],
     }
