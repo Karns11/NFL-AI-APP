@@ -17,8 +17,8 @@ env/
 data/db/*.duckdb
 data/raw/
 
-# Models — regenerable by running run_phase2.py
-models/*.joblib
+# Old Phase 1 models (superseded by _p2 versions)
+models/*_bundle.joblib
 
 # App state DB — regenerable
 data/db/app.db
@@ -38,3 +38,9 @@ data/db/app.db
 
 # Reports (generated output)
 reports/
+
+# Per-user report cache (generated at runtime)
+data/reports/
+
+# Report cache JSON (legacy single-user)
+data/report_cache.json

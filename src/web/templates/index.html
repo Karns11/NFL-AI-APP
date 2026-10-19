@@ -5,246 +5,376 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NFL Fantasy AI</title>
   <style>
+    :root {
+      --bg:           #0a0a0f;
+      --surface:      #111118;
+      --surface-hi:   #18181f;
+      --border:       #22222e;
+      --border-faint: #191921;
+      --text-1:       #f0f0f5;
+      --text-2:       #636370;
+      --text-3:       #3a3a46;
+      --accent:       #4f8ef7;
+      --green:        #34c759;
+      --red:          #ff3b30;
+      --amber:        #ff9500;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
+      background: var(--bg);
+      color: var(--text-1);
       font-size: 14px;
       line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Header ── */
-    .header {
-      background: #1a1d2e;
-      border-bottom: 1px solid #2d3148;
-      padding: 14px 24px;
+    /* ── Nav ──────────────────────────────────── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      padding: 0 20px;
       display: flex;
       align-items: center;
       gap: 16px;
     }
-    .header h1 { font-size: 16px; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
-    .header .meta { font-size: 12px; color: #64748b; margin-left: auto; }
+    .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: 0.1px; }
+    .nav-week  { font-size: 12px; color: var(--text-3); font-weight: 500; }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .nav-user  { font-size: 13px; color: var(--text-2); }
+    .nav-sep   { width: 1px; height: 16px; background: var(--border); }
+    .nav-link  { font-size: 13px; color: var(--text-2); text-decoration: none; }
+    .nav-link:hover { color: var(--text-1); }
+
     .btn {
-      padding: 6px 14px;
-      border-radius: 6px;
+      padding: 6px 13px;
+      border-radius: 7px;
       border: none;
       cursor: pointer;
       font-size: 13px;
       font-weight: 500;
-    }
-    .btn-primary { background: #3b82f6; color: #fff; }
-    .btn-primary:hover { background: #2563eb; }
-    .btn-secondary { background: #1e2236; color: #94a3b8; border: 1px solid #2d3148; }
-    .btn-secondary:hover { background: #2d3148; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ── Layout ── */
-    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-
-    /* ── League card ── */
-    .league-card {
-      background: #1a1d2e;
-      border: 1px solid #2d3148;
-      border-radius: 10px;
-      margin-bottom: 28px;
-      overflow: hidden;
-    }
-    .league-header {
-      padding: 14px 20px;
-      background: #1e2236;
-      border-bottom: 1px solid #2d3148;
-      display: flex;
+      line-height: 1;
+      transition: opacity 0.12s;
+      display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: 6px;
     }
-    .league-name { font-size: 15px; font-weight: 600; color: #fff; }
-    .league-meta { font-size: 12px; color: #64748b; }
-    .matchup-chip {
-      margin-left: auto;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .win  { background: #14532d; color: #4ade80; }
-    .loss { background: #450a0a; color: #f87171; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.82; }
+    .btn-secondary { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--surface-hi); color: var(--text-1); }
 
-    /* ── Section labels ── */
-    .section-label {
-      padding: 8px 20px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: #475569;
-      background: #161926;
-      border-bottom: 1px solid #2d3148;
-    }
-
-    /* ── Player table ── */
-    table { width: 100%; border-collapse: collapse; }
-    th {
-      padding: 8px 12px;
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      color: #475569;
-      border-bottom: 1px solid #2d3148;
-      background: #161926;
-    }
-    th.num { text-align: right; }
-    td { padding: 10px 12px; border-bottom: 1px solid #1e2236; vertical-align: top; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #1e2236; }
-
-    /* ── Player name cell ── */
-    .player-name { font-weight: 600; color: #f1f5f9; }
-    .player-pos  { font-size: 11px; color: #64748b; margin-top: 1px; }
-    .starter-dot {
-      display: inline-block;
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: #3b82f6;
-      margin-right: 6px;
-      vertical-align: middle;
-    }
-
-    /* ── Projection numbers ── */
-    .proj-cell  { text-align: right; white-space: nowrap; }
-    .proj-med   { font-weight: 700; color: #f1f5f9; font-size: 15px; display: inline; }
-    .proj-label { font-size: 10px; color: #475569; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; margin-right: 3px; }
-    .proj-sub   { font-size: 11px; color: #64748b; margin-top: 3px; }
-
-    /* ── Opponent section ── */
-    .opp-section { border-left: 3px solid #c2410c; }
-    .section-label-opp {
-      padding: 8px 20px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: #fb923c;
-      background: #1c1410;
-      border-bottom: 1px solid #3d2010;
-    }
-    .opp-section tr:hover td { background: #1c1a14; }
-
-    /* ── Badges ── */
-    .badge {
-      display: inline-block;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .badge-injury-Q  { background: #78350f; color: #fcd34d; }
-    .badge-injury-D  { background: #7c2d12; color: #fb923c; }
-    .badge-injury-Out, .badge-injury-IR { background: #450a0a; color: #f87171; }
-    .badge-start     { background: #14532d; color: #4ade80; }
-
-    /* ── SHAP drivers ── */
-    .shap { font-size: 11px; margin-top: 4px; }
-    .shap-pos { color: #4ade80; }
-    .shap-neg { color: #f87171; }
-
-    /* ── LLM summary ── */
-    .summary-text {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-top: 6px;
-      padding: 8px 10px;
-      background: #161926;
-      border-radius: 6px;
-      border-left: 2px solid #3b82f6;
-      line-height: 1.6;
-    }
-
-    /* ── Freshness bar ── */
-    .freshness-bar {
-      background: #13151f;
-      border-bottom: 1px solid #2d3148;
-      padding: 8px 24px;
-      display: flex;
-      gap: 28px;
-      flex-wrap: wrap;
-    }
-    .freshness-item { display: flex; align-items: baseline; gap: 6px; }
-    .freshness-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: #475569; }
-    .freshness-when  { font-size: 12px; color: #94a3b8; }
-    .freshness-detail { font-size: 11px; color: #475569; }
-
-    /* ── Empty state ── */
-    .empty {
-      padding: 48px;
-      text-align: center;
-      color: #475569;
-    }
-    .empty h2 { font-size: 18px; margin-bottom: 8px; color: #64748b; }
-
-    /* ── Spinner ── */
     .spinner {
       display: none;
-      width: 14px; height: 14px;
-      border: 2px solid #3b82f6;
+      width: 11px; height: 11px;
+      border: 1.5px solid currentColor;
       border-top-color: transparent;
       border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-left: 8px;
+      animation: spin 0.65s linear infinite;
+      opacity: 0.5;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Toast ── */
+    /* ── Freshness bar ───────────────────────── */
+    .freshness-bar {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border-faint);
+      padding: 6px 20px;
+      display: flex;
+      gap: 22px;
+      flex-wrap: wrap;
+    }
+    .fi { display: flex; align-items: baseline; gap: 5px; }
+    .fi-label  { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-3); }
+    .fi-when   { font-size: 11px; color: var(--text-2); }
+    .fi-detail { font-size: 11px; color: var(--text-3); }
+
+    /* ── Layout ──────────────────────────────── */
+    .container { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── League card ─────────────────────────── */
+    .league-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    /* ── Scoreboard ──────────────────────────── */
+    .scoreboard {
+      padding: 20px 24px 18px;
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .sb-meta {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .sb-scores {
+      display: flex;
+      align-items: flex-end;
+    }
+    .sb-side { flex: 1; }
+    .sb-side.right { text-align: right; }
+    .sb-num {
+      font-size: 34px;
+      font-weight: 700;
+      color: var(--text-1);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -1.5px;
+      line-height: 1;
+    }
+    .sb-name {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 5px;
+      font-weight: 500;
+    }
+    .sb-mid {
+      padding: 0 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding-bottom: 6px;
+    }
+    .sb-vs   { font-size: 12px; color: var(--text-3); font-weight: 500; letter-spacing: 0.5px; }
+    .sb-diff {
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .sb-diff.ahead  { color: var(--green); }
+    .sb-diff.behind { color: var(--red); }
+
+    /* ── Section label ───────────────────────── */
+    .sec-label {
+      padding: 7px 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .sec-divider { height: 1px; background: var(--border); }
+
+    /* ── Player rows ─────────────────────────── */
+    .player-item {
+      padding: 11px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--border-faint);
+      transition: background 0.1s;
+      position: relative;
+    }
+    .player-item:last-child { border-bottom: none; }
+    .player-item:hover { background: var(--surface-hi); }
+    .player-item.has-summary { cursor: pointer; }
+
+    /* starter dot */
+    .s-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+    .s-dot-ph { width: 6px; flex-shrink: 0; }
+
+    /* identity */
+    .p-identity { flex: 1; min-width: 0; }
+    .p-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .pname {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-1);
+      white-space: nowrap;
+    }
+    .ai-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+      opacity: 0.6;
+      title: "AI insight — tap to read";
+    }
+    .p-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+
+    /* status pills */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.7;
+      flex-shrink: 0;
+    }
+    .pill-Q   { background: rgba(255,149,0,.13);  color: var(--amber); }
+    .pill-D   { background: rgba(255,59,48,.12);  color: var(--red);   }
+    .pill-Out, .pill-IR { background: rgba(255,59,48,.18); color: var(--red); }
+    .pill-start { background: rgba(52,199,89,.13); color: var(--green); }
+
+    /* SHAP arrow */
+    .shap-arrow { font-size: 11px; flex-shrink: 0; cursor: default; }
+    .shap-up   { color: var(--green); }
+    .shap-down { color: var(--red);   }
+
+    /* projection block */
+    .proj-block {
+      text-align: right;
+      flex-shrink: 0;
+      min-width: 52px;
+    }
+    .proj-num {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-1);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+    .proj-num.empty { font-size: 14px; color: var(--text-3); font-weight: 400; }
+
+    /* range bar */
+    .rbar {
+      margin-top: 5px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      position: relative;
+    }
+    .rbar-fill {
+      position: absolute;
+      left: 0; top: 0; height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      opacity: 0.55;
+    }
+    .rbar-dot {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* summary panel */
+    .summary-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.22s ease;
+    }
+    .summary-panel.open { max-height: 240px; }
+    .summary-inner {
+      padding: 10px 20px 14px 36px;
+      font-size: 12px;
+      color: var(--text-2);
+      line-height: 1.7;
+      border-top: 1px solid var(--border-faint);
+      background: var(--bg);
+    }
+
+    /* ── Empty state ─────────────────────────── */
+    .empty {
+      padding: 60px 24px;
+      text-align: center;
+    }
+    .empty h2 { font-size: 18px; font-weight: 600; color: var(--text-1); margin-bottom: 8px; }
+    .empty p  { font-size: 14px; color: var(--text-2); margin-bottom: 24px; }
+
+    /* ── Toast ───────────────────────────────── */
     #toast {
       position: fixed;
       bottom: 24px; right: 24px;
-      padding: 10px 18px;
-      border-radius: 8px;
+      padding: 9px 15px;
+      border-radius: 9px;
       font-size: 13px;
       font-weight: 500;
       opacity: 0;
-      transition: opacity 0.3s;
+      transition: opacity 0.22s;
       pointer-events: none;
+      z-index: 100;
     }
     #toast.show { opacity: 1; }
-    #toast.ok   { background: #14532d; color: #4ade80; }
-    #toast.err  { background: #450a0a; color: #f87171; }
+    #toast.ok  { background: rgba(52,199,89,.18);  color: var(--green); border: 1px solid rgba(52,199,89,.25); }
+    #toast.err { background: rgba(255,59,48,.18);  color: var(--red);   border: 1px solid rgba(255,59,48,.25); }
+
+    /* ── Mobile ──────────────────────────────── */
+    @media (max-width: 600px) {
+      .nav { padding: 0 14px; gap: 10px; }
+      .nav-user { display: none; }
+      .container { padding: 16px 10px; }
+      .scoreboard { padding: 16px 16px 14px; }
+      .sb-num { font-size: 28px; }
+      .sb-mid { padding: 0 12px 5px; }
+      .player-item { padding: 10px 14px; }
+      .sec-label { padding: 6px 14px; }
+      .proj-num { font-size: 16px; }
+      .freshness-bar { padding: 5px 14px; gap: 14px; }
+      .btn { padding: 5px 10px; font-size: 12px; }
+    }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>NFL Fantasy AI</h1>
+{# ── Feature label macro ────────────────────────── #}
+{% macro feat_name(f) %}{{ f
+  .replace("fp_roll4_mean","Form")
+  .replace("fp_ewm","Form")
+  .replace("target_share_roll4","Tgt Share")
+  .replace("target_share_ewm","Tgt Share")
+  .replace("snap_pct_roll3","Snap%")
+  .replace("snap_pct_ewm","Snap%")
+  .replace("team_implied_total","Game Total")
+  .replace("spread_line","Spread")
+  .replace("opp_fp_allowed_roll4","Opp DEF")
+  .replace("_"," ") }}{% endmacro %}
+
+<nav class="nav">
+  <span class="nav-brand">NFL Fantasy AI</span>
   {% if cached %}
-    <span class="meta">Week {{ cached.week }} · {{ cached.season }}</span>
-    {% if age_str %}
-      <span class="meta">Updated {{ age_str }}</span>
-    {% endif %}
+    <span class="nav-week">Wk {{ cached.week }} · {{ cached.season }}</span>
   {% endif %}
-  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
-    <span class="meta">{{ current_user.display_name }}</span>
-    <a href="{{ url_for('main.settings') }}" style="font-size:12px;color:#64748b;text-decoration:none;">Settings</a>
-    <a href="{{ url_for('main.logout') }}" style="font-size:12px;color:#64748b;text-decoration:none;">Sign out</a>
+  <div class="nav-right">
+    <span class="nav-user">{{ current_user.display_name }}</span>
+    <span class="nav-sep"></span>
+    <a href="{{ url_for('main.settings') }}" class="nav-link">Settings</a>
+    <a href="{{ url_for('main.logout') }}" class="nav-link">Sign out</a>
     {% if cached %}
-    <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
-      Refresh  <span class="spinner" id="spin-refresh"></span>
-    </button>
-    <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
-      Refresh + AI  <span class="spinner" id="spin-ai"></span>
-    </button>
+      <span class="nav-sep"></span>
+      <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
+        Refresh <span class="spinner" id="spin-refresh"></span>
+      </button>
+      <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
+        Refresh + AI <span class="spinner" id="spin-ai"></span>
+      </button>
     {% endif %}
   </div>
-</div>
+</nav>
 
 <div class="freshness-bar">
   {% for key, item in freshness.items() %}
-  <div class="freshness-item">
-    <span class="freshness-label">{{ item.label }}</span>
-    <span class="freshness-when">{{ item.when }}</span>
-    {% if item.detail %}<span class="freshness-detail">· {{ item.detail }}</span>{% endif %}
+  <div class="fi">
+    <span class="fi-label">{{ item.label }}</span>
+    <span class="fi-when">{{ item.when }}</span>
+    {% if item.detail %}<span class="fi-detail">· {{ item.detail }}</span>{% endif %}
   </div>
   {% endfor %}
 </div>
@@ -253,121 +383,142 @@
 {% if not cached %}
   <div class="empty">
     <h2>No report yet</h2>
-    <p>Click below to generate your first report. This takes about 60 seconds.</p>
-    <br>
-    <a href="{{ url_for('main.generate_report') }}" class="btn btn-primary" style="display:inline-block;text-decoration:none;">Generate Report</a>
+    <p>Generate your first report — takes about 60 seconds.</p>
+    <a href="{{ url_for('main.generate_report') }}" class="btn btn-primary" style="text-decoration:none;display:inline-flex;">Generate Report</a>
   </div>
 
 {% else %}
   {% for league in cached.leagues %}
   {% set diff = league.my_projected_total - league.opp_projected_total %}
   <div class="league-card">
-    <div class="league-header">
-      <div>
-        <div class="league-name">{{ league.league_name }}</div>
-        <div class="league-meta">{{ league.scoring_format }} · Week {{ league.week }}</div>
-      </div>
-      <div class="matchup-chip {{ 'win' if diff >= 0 else 'loss' }}">
-        {{ "▲" if diff >= 0 else "▼" }}
-        You {{ league.my_projected_total }} pts  vs  {{ league.opp_name }} {{ league.opp_projected_total }} pts
-        ({{ "%+.1f"|format(diff) }})
+
+    {# ── Scoreboard ─────────────────────────── #}
+    <div class="scoreboard">
+      <div class="sb-meta">{{ league.league_name }} · {{ league.scoring_format }} · Week {{ league.week }}{% if age_str %} · Report {{ age_str }}{% endif %}</div>
+      <div class="sb-scores">
+        <div class="sb-side">
+          <div class="sb-num">{{ "%.1f"|format(league.my_projected_total) }}</div>
+          <div class="sb-name">You</div>
+        </div>
+        <div class="sb-mid">
+          <span class="sb-vs">vs</span>
+          <span class="sb-diff {{ 'ahead' if diff >= 0 else 'behind' }}">{{ "%+.1f"|format(diff) }}</span>
+        </div>
+        <div class="sb-side right">
+          <div class="sb-num">{{ "%.1f"|format(league.opp_projected_total) }}</div>
+          <div class="sb-name">{{ league.opp_name }}</div>
+        </div>
       </div>
     </div>
 
-    <!-- My Roster -->
-    <div class="section-label">My Roster</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:30%">Player</th>
-          <th>Team</th>
-          <th>Status</th>
-          <th class="num" style="width:22%">Projection</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in league.my_roster %}
-        <tr>
-          <td>
-            <div class="player-name">
-              {% if p.is_starter %}<span class="starter-dot" title="Currently starting"></span>{% endif %}
-              {{ p.name }}
-              {% if p.start_sit_alert %}
-                <span class="badge badge-start" title="Start/Sit alert">START</span>
-              {% endif %}
-            </div>
-            <div class="player-pos">{{ p.position }}</div>
-            {% if p.shap_positive or p.shap_negative %}
-            <div class="shap">
-              {% for feat, val in (p.shap_positive or [])[:2] %}
-                <span class="shap-pos">▲{{ "%.1f"|format(val) }} {{ feat.replace("fp_roll4_mean","Form").replace("fp_ewm","Form(EWM)").replace("target_share_roll4","TgtShr").replace("target_share_ewm","TgtShr(EWM)").replace("snap_pct_roll3","Snap%").replace("snap_pct_ewm","Snap%(EWM)").replace("team_implied_total","ImpliedTotal").replace("spread_line","Spread").replace("opp_fp_allowed_roll4","OppDEF").replace("_"," ") }}</span>
-              {% endfor %}
-              {% for feat, val in (p.shap_negative or [])[:1] %}
-                <span class="shap-neg"> ▼{{ "%.1f"|format(val|abs) }} {{ feat.replace("fp_roll4_mean","Form").replace("fp_ewm","Form(EWM)").replace("target_share_roll4","TgtShr").replace("target_share_ewm","TgtShr(EWM)").replace("snap_pct_roll3","Snap%").replace("snap_pct_ewm","Snap%(EWM)").replace("team_implied_total","ImpliedTotal").replace("spread_line","Spread").replace("opp_fp_allowed_roll4","OppDEF").replace("_"," ") }}</span>
-              {% endfor %}
-            </div>
-            {% endif %}
-            {% if p.llm_summary %}
-            <div class="summary-text">{{ p.llm_summary }}</div>
-            {% endif %}
-          </td>
-          <td>{{ p.team }}</td>
-          <td>
-            {% if p.injury_status %}
-              <span class="badge badge-injury-{{ p.injury_status }}">{{ p.injury_status }}</span>
-            {% endif %}
-          </td>
-          <td class="proj-cell">
-            {% if p.predicted is not none %}
-              <div><span class="proj-label">Proj</span><span class="proj-med">{{ "%.1f"|format(p.predicted) }}</span></div>
-              <div class="proj-sub"><span class="proj-label">Floor</span>{{ "%.1f"|format(p.floor) }}&nbsp;&nbsp;<span class="proj-label">Ceil</span>{{ "%.1f"|format(p.ceiling) }}</div>
-            {% else %}
-              <div style="color:#475569">—</div>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    {# ── My Roster ──────────────────────────── #}
+    <div class="sec-label">My Roster</div>
+    <div class="player-list">
+      {% for p in league.my_roster %}
 
-    <!-- Opponent Starters -->
-    {% if league.opp_starters %}
-    <div class="opp-section">
-    <div class="section-label-opp">Opponent: {{ league.opp_name }}</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:30%">Player</th>
-          <th>Team</th>
-          <th>Status</th>
-          <th class="num" style="width:22%">Projection</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in league.opp_starters %}
-        <tr>
-          <td>
-            <div class="player-name">{{ p.name }}</div>
-            <div class="player-pos">{{ p.position }}</div>
-          </td>
-          <td>{{ p.team }}</td>
-          <td>
-            {% if p.injury_status %}
-              <span class="badge badge-injury-{{ p.injury_status }}">{{ p.injury_status }}</span>
-            {% endif %}
-          </td>
-          <td class="proj-cell">
-            {% if p.predicted is not none %}
-              <div><span class="proj-label">Proj</span><span class="proj-med">{{ "%.1f"|format(p.predicted) }}</span></div>
-              <div class="proj-sub"><span class="proj-label">Floor</span>{{ "%.1f"|format(p.floor) }}&nbsp;&nbsp;<span class="proj-label">Ceil</span>{{ "%.1f"|format(p.ceiling) }}</div>
-            {% else %}
-              <div style="color:#475569">—</div>
-            {% endif %}
-          </td>
-        </tr>
+        {# SHAP net direction + tooltip #}
+        {% set pos_sum = namespace(v=0.0) %}
+        {% for feat, val in (p.shap_positive or []) %}{% set pos_sum.v = pos_sum.v + val %}{% endfor %}
+        {% set neg_sum = namespace(v=0.0) %}
+        {% for feat, val in (p.shap_negative or []) %}{% set neg_sum.v = neg_sum.v + (val|abs) %}{% endfor %}
+        {% set has_shap = (p.shap_positive or p.shap_negative) %}
+        {% set net_up = (pos_sum.v >= neg_sum.v) %}
+
+        {# Tooltip text #}
+        {% set tip = namespace(text="") %}
+        {% for feat, val in (p.shap_positive or [])[:2] %}
+          {% set seg = "▲" ~ "%.1f"|format(val) ~ "\u202f" ~ feat_name(feat)|trim %}
+          {% set tip.text = tip.text ~ (seg if loop.first else " · " ~ seg) %}
         {% endfor %}
-      </tbody>
-    </table>
+        {% for feat, val in (p.shap_negative or [])[:1] %}
+          {% set seg = "▼" ~ "%.1f"|format(val|abs) ~ "\u202f" ~ feat_name(feat)|trim %}
+          {% set tip.text = tip.text ~ (" · " if tip.text else "") ~ seg %}
+        {% endfor %}
+
+        {# Range bar pct (0–100) #}
+        {% if p.predicted is not none and p.ceiling is not none and p.floor is not none and (p.ceiling - p.floor) > 0.01 %}
+          {% set raw_pct = (p.predicted - p.floor) / (p.ceiling - p.floor) * 100 %}
+          {% set pct = [0.0, [100.0, raw_pct]|min]|max %}
+        {% else %}
+          {% set pct = 50.0 %}
+        {% endif %}
+
+      <div class="player-item {{ 'has-summary' if p.llm_summary else '' }}"
+           {% if p.llm_summary %}onclick="toggleSummary(this)"{% endif %}>
+        {% if p.is_starter %}<span class="s-dot" title="In your lineup"></span>{% else %}<span class="s-dot-ph"></span>{% endif %}
+
+        <div class="p-identity">
+          <div class="p-name-row">
+            <span class="pname">{{ p.name }}</span>
+            {% if p.llm_summary %}<span class="ai-dot" title="AI insight — tap to read"></span>{% endif %}
+            {% if p.injury_status %}<span class="pill pill-{{ p.injury_status }}">{{ p.injury_status }}</span>{% endif %}
+            {% if p.start_sit_alert %}<span class="pill pill-start">START</span>{% endif %}
+            {% if has_shap %}
+              <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>
+            {% endif %}
+          </div>
+          <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
+        </div>
+
+        <div class="proj-block">
+          {% if p.predicted is not none %}
+            <div class="proj-num">{{ "%.1f"|format(p.predicted) }}</div>
+            <div class="rbar" title="Floor {{ '%.1f'|format(p.floor) }} · Ceil {{ '%.1f'|format(p.ceiling) }}">
+              <div class="rbar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div>
+              <div class="rbar-dot"  style="left:{{ "%.1f"|format(pct) }}%"></div>
+            </div>
+          {% else %}
+            <div class="proj-num empty">—</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if p.llm_summary %}
+      <div class="summary-panel">
+        <div class="summary-inner">{{ p.llm_summary }}</div>
+      </div>
+      {% endif %}
+
+      {% endfor %}
+    </div>
+
+    {# ── Opponent Starters ──────────────────── #}
+    {% if league.opp_starters %}
+    <div class="sec-divider"></div>
+    <div class="sec-label" style="color:var(--text-2)">{{ league.opp_name }}</div>
+    <div class="player-list">
+      {% for p in league.opp_starters %}
+
+        {% if p.predicted is not none and p.ceiling is not none and p.floor is not none and (p.ceiling - p.floor) > 0.01 %}
+          {% set raw_pct = (p.predicted - p.floor) / (p.ceiling - p.floor) * 100 %}
+          {% set pct = [0.0, [100.0, raw_pct]|min]|max %}
+        {% else %}
+          {% set pct = 50.0 %}
+        {% endif %}
+
+      <div class="player-item">
+        <span class="s-dot-ph"></span>
+        <div class="p-identity">
+          <div class="p-name-row">
+            <span class="pname">{{ p.name }}</span>
+            {% if p.injury_status %}<span class="pill pill-{{ p.injury_status }}">{{ p.injury_status }}</span>{% endif %}
+          </div>
+          <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
+        </div>
+        <div class="proj-block">
+          {% if p.predicted is not none %}
+            <div class="proj-num">{{ "%.1f"|format(p.predicted) }}</div>
+            <div class="rbar" title="Floor {{ '%.1f'|format(p.floor) }} · Ceil {{ '%.1f'|format(p.ceiling) }}">
+              <div class="rbar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div>
+              <div class="rbar-dot"  style="left:{{ "%.1f"|format(pct) }}%"></div>
+            </div>
+          {% else %}
+            <div class="proj-num empty">—</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% endfor %}
     </div>
     {% endif %}
 
@@ -379,38 +530,44 @@
 <div id="toast"></div>
 
 <script>
+function toggleSummary(row) {
+  const panel = row.nextElementSibling;
+  if (panel && panel.classList.contains('summary-panel')) {
+    panel.classList.toggle('open');
+  }
+}
+
 function showToast(msg, type) {
-  const t = document.getElementById("toast");
+  const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = "show " + type;
-  setTimeout(() => { t.className = ""; }, 3000);
+  t.className = 'show ' + type;
+  setTimeout(() => { t.className = ''; }, 3000);
 }
 
 function doRefresh(withAI) {
-  const btnRefresh = document.getElementById("btn-refresh");
-  const btnAI = document.getElementById("btn-refresh-ai");
-  const spin = document.getElementById(withAI ? "spin-ai" : "spin-refresh");
+  const btnR  = document.getElementById('btn-refresh');
+  const btnAI = document.getElementById('btn-refresh-ai');
+  const spin  = document.getElementById(withAI ? 'spin-ai' : 'spin-refresh');
 
-  if (btnRefresh) btnRefresh.disabled = true;
+  if (btnR)  btnR.disabled  = true;
   if (btnAI) btnAI.disabled = true;
-  if (spin) spin.style.display = "inline-block";
+  if (spin)  spin.style.display = 'inline-block';
 
-  const url = withAI ? "/api/refresh-full" : "/api/refresh";
-  fetch(url, { method: "POST" })
+  fetch(withAI ? '/api/refresh-full' : '/api/refresh', { method: 'POST' })
     .then(r => r.json())
-    .then(data => {
-      if (data.status === "ok") {
-        showToast("Report updated", "ok");
+    .then(d => {
+      if (d.status === 'ok') {
+        showToast('Report updated', 'ok');
         setTimeout(() => location.reload(), 800);
       } else {
-        showToast("Error: " + data.message, "err");
+        showToast('Error: ' + d.message, 'err');
       }
     })
-    .catch(e => showToast("Request failed", "err"))
+    .catch(() => showToast('Request failed', 'err'))
     .finally(() => {
-      if (btnRefresh) btnRefresh.disabled = false;
+      if (btnR)  btnR.disabled  = false;
       if (btnAI) btnAI.disabled = false;
-      if (spin) spin.style.display = "none";
+      if (spin)  spin.style.display = 'none';
     });
 }
 </script>

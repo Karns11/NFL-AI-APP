@@ -111,7 +111,7 @@ def start_scheduler():
     )
     scheduler.add_job(
         _scheduled_injury_refresh,
-        CronTrigger(day_of_week="wed,thu,fri", hour=9, minute=0),
+        CronTrigger(day_of_week="wed,thu,fri,sat", hour=9, minute=0),
         id="injury_refresh", name="Injury refresh", replace_existing=True,
     )
     scheduler.add_job(
