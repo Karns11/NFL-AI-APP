@@ -9,7 +9,7 @@ import logging
 from dataclasses import asdict
 from datetime import datetime, timezone
 
-from src.news.db import init_db
+from src.news.db import init_db, get_all_users
 from src.news.injury_scraper import run_scrape
 from src.news.rss_fetcher import fetch_all_feeds
 from src.fantasy.sleeper import get_my_league_data
@@ -72,7 +72,7 @@ def run_pipeline(
     # Build a lookup of existing LLM summaries from the prior cache so a
     # no-LLM refresh doesn't wipe out summaries that were already generated.
     prior_summaries: dict[str, str] = {}
-    prior = report_cache.get()
+    prior = report_cache.get(username)
     if prior and not use_llm:
         for prior_league in prior.leagues:
             for p in prior_league.get("my_roster", []):
@@ -138,5 +138,29 @@ def run_pipeline(
         username=username,
         leagues=serialized_leagues,
     )
-    report_cache.set(cached)
-    logger.info(f"Pipeline complete — {len(leagues)} leagues cached")
+    report_cache.set(username, cached)
+    logger.info(f"Pipeline complete — {len(leagues)} leagues cached for {username}")
+
+
+def run_pipeline_for_all_users(use_llm: bool = False, refresh_injuries: bool = False) -> None:
+    """
+    Run the pipeline for every registered user that has a Sleeper username set.
+    Used by scheduled jobs so all users' reports stay current automatically.
+    """
+    init_db()
+    users = [u for u in get_all_users() if u["sleeper_username"]]
+    if not users:
+        logger.info("No users with Sleeper usernames — skipping scheduled pipeline")
+        return
+
+    logger.info(f"Running pipeline for {len(users)} user(s)...")
+    for user in users:
+        sleeper_username = user["sleeper_username"]
+        try:
+            run_pipeline(
+                username=sleeper_username,
+                use_llm=use_llm,
+                refresh_injuries=refresh_injuries,
+            )
+        except Exception as e:
+            logger.error(f"Pipeline failed for {sleeper_username}: {e}")

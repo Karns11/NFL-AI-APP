@@ -219,17 +219,24 @@
 <div class="header">
   <h1>NFL Fantasy AI</h1>
   {% if cached %}
-    <span class="meta">Week {{ cached.week }} · {{ cached.season }} · {{ cached.username }}</span>
+    <span class="meta">Week {{ cached.week }} · {{ cached.season }}</span>
     {% if age_str %}
       <span class="meta">Updated {{ age_str }}</span>
     {% endif %}
+  {% endif %}
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+    <span class="meta">{{ current_user.display_name }}</span>
+    <a href="{{ url_for('main.settings') }}" style="font-size:12px;color:#64748b;text-decoration:none;">Settings</a>
+    <a href="{{ url_for('main.logout') }}" style="font-size:12px;color:#64748b;text-decoration:none;">Sign out</a>
+    {% if cached %}
     <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
       Refresh  <span class="spinner" id="spin-refresh"></span>
     </button>
     <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
       Refresh + AI  <span class="spinner" id="spin-ai"></span>
     </button>
-  {% endif %}
+    {% endif %}
+  </div>
 </div>
 
 <div class="freshness-bar">
@@ -246,9 +253,9 @@
 {% if not cached %}
   <div class="empty">
     <h2>No report yet</h2>
-    <p>Click "Generate Report" to run the pipeline for the first time.</p>
+    <p>Click below to generate your first report. This takes about 60 seconds.</p>
     <br>
-    <button class="btn btn-primary" onclick="doRefresh(true)">Generate Report</button>
+    <a href="{{ url_for('main.generate_report') }}" class="btn btn-primary" style="display:inline-block;text-decoration:none;">Generate Report</a>
   </div>
 
 {% else %}

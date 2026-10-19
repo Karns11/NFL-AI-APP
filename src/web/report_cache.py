@@ -1,8 +1,10 @@
 """
-In-memory + disk cache for the last-generated league reports.
+Per-user report cache.
 
-Keeps a single snapshot of all league data so the web page loads
-instantly without re-running the full pipeline on every request.
+Each user's last-generated report is stored at:
+  data/reports/{sleeper_username}.json
+
+Also kept in an in-memory dict keyed by sleeper_username for fast access.
 """
 
 import json
@@ -13,60 +15,65 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-CACHE_PATH = Path("data/report_cache.json")
+CACHE_DIR = Path("data/reports")
 
-# In-memory state
-_cache: dict = {}
+# In-memory cache: sleeper_username → dict
+_cache: dict[str, dict] = {}
 
 
 @dataclass
 class CachedReport:
-    generated_at: str          # ISO timestamp
+    generated_at: str
     week: int
     season: int
     username: str
-    leagues: list[dict]        # serialized league bundles
+    leagues: list[dict]
 
 
-def get() -> CachedReport | None:
-    """Return the in-memory cached report, or load from disk if available."""
-    if _cache:
-        return CachedReport(**_cache)
+def _path(sleeper_username: str) -> Path:
+    return CACHE_DIR / f"{sleeper_username}.json"
 
-    if CACHE_PATH.exists():
+
+def get(sleeper_username: str) -> CachedReport | None:
+    """Return cached report for a user, loading from disk if needed."""
+    key = sleeper_username.lower()
+    if key in _cache:
+        return CachedReport(**_cache[key])
+
+    p = _path(sleeper_username)
+    if p.exists():
         try:
-            data = json.loads(CACHE_PATH.read_text())
-            _cache.update(data)
-            return CachedReport(**_cache)
+            data = json.loads(p.read_text())
+            _cache[key] = data
+            return CachedReport(**data)
         except Exception as e:
-            logger.warning(f"Failed to load report cache from disk: {e}")
+            logger.warning(f"Failed to load report cache for {sleeper_username}: {e}")
 
     return None
 
 
-def set(report: CachedReport) -> None:
-    """Store a new report snapshot in memory and on disk."""
+def set(sleeper_username: str, report: CachedReport) -> None:
+    """Store a report for a user in memory and on disk."""
     data = asdict(report)
-    _cache.clear()
-    _cache.update(data)
+    key = sleeper_username.lower()
+    _cache[key] = data
 
     try:
-        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        CACHE_PATH.write_text(json.dumps(data, indent=2, default=str))
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        _path(sleeper_username).write_text(json.dumps(data, indent=2, default=str))
     except Exception as e:
-        logger.warning(f"Failed to persist report cache: {e}")
+        logger.warning(f"Failed to persist report cache for {sleeper_username}: {e}")
 
 
-def age_minutes() -> float | None:
-    """Return how many minutes ago the cache was generated, or None."""
-    cached = get()
+def age_minutes(sleeper_username: str) -> float | None:
+    """Return how many minutes ago the user's report was generated."""
+    cached = get(sleeper_username)
     if not cached:
         return None
     try:
         generated = datetime.fromisoformat(cached.generated_at)
         if generated.tzinfo is None:
             generated = generated.replace(tzinfo=timezone.utc)
-        delta = datetime.now(timezone.utc) - generated
-        return delta.total_seconds() / 60
+        return (datetime.now(timezone.utc) - generated).total_seconds() / 60
     except Exception:
         return None
