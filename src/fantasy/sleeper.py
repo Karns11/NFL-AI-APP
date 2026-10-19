@@ -178,6 +178,27 @@ def _enrich_league(league: dict, user_id: str) -> dict:
     return league
 
 
+def get_player_projected_scores(season: int, week: int) -> dict[str, dict]:
+    """
+    Returns {sleeper_player_id: {pts_ppr, pts_half_ppr, pts_std, ...}} for all
+    players for a given week using Sleeper's projection endpoint.
+    Returns empty dict on failure (future weeks may have no projections yet).
+    """
+    try:
+        return _get(f"/projections/nfl/regular/{season}/{week}") or {}
+    except Exception:
+        return {}
+
+
+def _scoring_key(scoring_format: str) -> str:
+    """Map scoring format string to the Sleeper projection field name."""
+    if scoring_format == "PPR":
+        return "pts_ppr"
+    if scoring_format == "Half PPR":
+        return "pts_half_ppr"
+    return "pts_std"
+
+
 def get_player_actual_scores(league_id: str, week: int) -> dict[str, float]:
     """
     Returns {sleeper_player_id: points_scored} for a completed week.

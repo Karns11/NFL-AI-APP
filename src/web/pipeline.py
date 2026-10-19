@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from src.news.db import init_db, get_all_users
 from src.news.injury_scraper import run_scrape
 from src.news.rss_fetcher import fetch_all_feeds
-from src.fantasy.sleeper import get_my_league_data, get_player_actual_scores
+from src.fantasy.sleeper import get_my_league_data, get_player_actual_scores, get_player_projected_scores, get_my_matchup, _scoring_key
 from src.predictions.predict import build_feature_df, _CURRENT_SEASON, get_current_week
 from src.predictions.weekly import build_full_league_report
 from src.web import report_cache
@@ -39,8 +39,8 @@ def _serialize_card(card) -> dict:
         "llm_summary": card.llm_summary,
         "opponent": card.opponent,
         "home_away": card.home_away,
-        "start_sit_alert": None,   # filled in below
-        "actual_points": None,     # filled in for past weeks
+        "start_sit_alert": None,       # filled in below
+        "actual_points": None,         # filled in for past weeks
     }
 
 
@@ -74,6 +74,9 @@ def run_pipeline(
     leagues = get_my_league_data(username, season)
     feature_df, schedules_df = build_feature_df()
 
+    # Fetch Sleeper's own projections for this week (all players, single API call)
+    sleeper_projs: dict[str, dict] = get_player_projected_scores(season, resolved_week)
+
     bundle_cache = {}
     serialized_leagues = []
 
@@ -98,10 +101,42 @@ def run_pipeline(
             use_llm=use_llm,
         )
 
+        scoring_key = _scoring_key(league.get("_scoring_format", "PPR"))
+
         # Fetch actual scores for past weeks
         actual_scores: dict[str, float] = {}
         if is_past:
             actual_scores = get_player_actual_scores(report.league_id, resolved_week)
+
+        # Compute Sleeper + actual team totals from raw matchup starter IDs so
+        # K/DEF are included (they're hidden from player rows but count in totals).
+        my_matchup, opp_matchup = get_my_matchup(league, resolved_week)
+
+        def _sum_sleeper(starter_ids: list[str]) -> tuple[float, bool]:
+            total, valid = 0.0, False
+            for sid in starter_ids:
+                val = (sleeper_projs.get(str(sid), {}) or {}).get(scoring_key)
+                if val is not None:
+                    total += float(val)
+                    valid = True
+            return total, valid
+
+        def _sum_actual(starter_ids: list[str]) -> tuple[float, bool]:
+            total, valid = 0.0, False
+            for sid in starter_ids:
+                pts = actual_scores.get(str(sid))
+                if pts is not None:
+                    total += pts
+                    valid = True
+            return total, valid
+
+        my_starter_ids = my_matchup.get("starters", []) if my_matchup else league.get("_my_starters_ids", [])
+        opp_starter_ids = opp_matchup.get("starters", []) if opp_matchup else []
+
+        my_sleeper_total, my_sleeper_total_valid = _sum_sleeper(my_starter_ids)
+        opp_sleeper_total, opp_sleeper_total_valid = _sum_sleeper(opp_starter_ids)
+        my_actual_total, my_actual_total_valid = _sum_actual(my_starter_ids)
+        opp_actual_total, opp_actual_total_valid = _sum_actual(opp_starter_ids)
 
         # Build a player-keyed set of start/sit alert names for badge rendering
         alert_names: set[str] = set()
@@ -159,6 +194,10 @@ def run_pipeline(
             "season": report.season,
             "my_projected_total": round(report.my_projected_total, 1),
             "opp_projected_total": round(report.opp_projected_total, 1),
+            "my_sleeper_projected_total": round(my_sleeper_total, 1) if my_sleeper_total_valid else None,
+            "opp_sleeper_projected_total": round(opp_sleeper_total, 1) if opp_sleeper_total_valid else None,
+            "my_actual_total": round(my_actual_total, 1) if my_actual_total_valid else None,
+            "opp_actual_total": round(opp_actual_total, 1) if opp_actual_total_valid else None,
             "opp_name": opp_name,
             "start_sit_alerts": report.start_sit_alerts,
             "my_roster": all_my_cards,

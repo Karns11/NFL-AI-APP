@@ -200,11 +200,26 @@ def build_full_league_report(
         injury = get_player_injury(name, week, season)
         injury_status = injury.get("status") if injury else info.get("injury_status")
 
+        llm_summary = None
+        if use_llm and position in MODEL_POSITIONS and name:
+            news_items = get_player_news(name, max_items=4)
+            teammate_injuries = None
+            if team:
+                all_team_injuries = get_team_injuries(team, week, season, exclude_name=name)
+                teammate_injuries = [t for t in all_team_injuries if t.get("status")] or None
+            llm_summary = summarize_player(
+                player_name=name, week=week, season=season,
+                position=position, team=team,
+                injury_record=injury,
+                news_items=news_items,
+                teammate_injuries=teammate_injuries,
+            )
+
         card = FullPlayerCard(
             sleeper_id=sid, name=name, position=position, team=team,
             is_starter=False,
             predicted=predicted, floor=floor, ceiling=ceiling,
-            injury_status=injury_status,
+            injury_status=injury_status, llm_summary=llm_summary,
         )
         bench_cards.append(card)
 

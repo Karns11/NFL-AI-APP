@@ -200,6 +200,36 @@ def get_data_freshness(week: int, season: int) -> dict:
     return freshness
 
 
+def _compute_accuracy(sleeper_username: str, season: int, current_week: int) -> dict:
+    """
+    Compute mean absolute error for model vs actuals and Sleeper vs actuals
+    across all past weeks that have been cached and have actual totals.
+    Returns {model_mae, sleeper_mae, weeks_counted}.
+    """
+    model_errors = []
+    sleeper_errors = []
+
+    for w in range(1, current_week):
+        past = report_cache.get(sleeper_username, w, season)
+        if not past:
+            continue
+        for league in past.leagues:
+            actual = league.get("my_actual_total")
+            model_proj = league.get("my_projected_total")
+            sleeper_proj = league.get("my_sleeper_projected_total")
+            if actual is not None and model_proj is not None:
+                model_errors.append(abs(actual - model_proj))
+            if actual is not None and sleeper_proj is not None:
+                sleeper_errors.append(abs(actual - sleeper_proj))
+
+    n = len(model_errors)
+    return {
+        "model_mae": round(sum(model_errors) / n, 1) if n else None,
+        "sleeper_mae": round(sum(sleeper_errors) / len(sleeper_errors), 1) if sleeper_errors else None,
+        "weeks_counted": n,
+    }
+
+
 @bp.route("/")
 @login_required
 def index():
@@ -227,6 +257,7 @@ def index():
             age_str = f"{int(age // 1440)}d ago"
 
     freshness = get_data_freshness(week, season)
+    accuracy = _compute_accuracy(sleeper_username, season, current_week)
     return render_template(
         "index.html",
         cached=cached,
@@ -234,6 +265,7 @@ def index():
         current_week=current_week,
         season=season,
         age_str=age_str,
+        accuracy=accuracy,
         freshness=freshness,
     )
 

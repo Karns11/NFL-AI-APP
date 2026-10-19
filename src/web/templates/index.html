@@ -153,29 +153,62 @@
       text-transform: uppercase;
       margin-bottom: 14px;
     }
-    .sb-scores { display: flex; align-items: flex-end; }
-    .sb-side { flex: 1; }
-    .sb-side.right { text-align: right; }
-    .sb-num {
-      font-size: 34px;
+    /* multi-row score grid */
+    .sb-grid {
+      display: grid;
+      grid-template-columns: 56px 1fr 64px 1fr;
+      align-items: baseline;
+      row-gap: 6px;
+    }
+    .sb-row-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      white-space: nowrap;
+      padding-right: 10px;
+    }
+    .sb-row-label.hl { color: var(--accent); }
+    .sb-val {
+      font-size: 28px;
       font-weight: 700;
       color: var(--text-1);
       font-variant-numeric: tabular-nums;
-      letter-spacing: -1.5px;
+      letter-spacing: -1px;
       line-height: 1;
     }
-    .sb-name { font-size: 12px; color: var(--text-2); margin-top: 5px; font-weight: 500; }
-    .sb-mid {
-      padding: 0 18px 6px;
+    .sb-val.right { text-align: right; }
+    .sb-val.dim { color: var(--text-2); font-size: 22px; }
+    .sb-val.actual-val { color: var(--green); font-size: 22px; }
+    .sb-divider-col {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 2px;
+      padding: 0 14px;
+      grid-row: 1 / span 10;
+      grid-column: 3;
+      align-self: center;
     }
     .sb-vs   { font-size: 12px; color: var(--text-3); font-weight: 500; letter-spacing: 0.5px; }
     .sb-diff { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
     .sb-diff.ahead  { color: var(--green); }
     .sb-diff.behind { color: var(--red); }
+    /* accuracy line */
+    .sb-accuracy {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-faint);
+      font-size: 11px;
+      color: var(--text-2);
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .sb-acc-item { display: flex; align-items: baseline; gap: 5px; }
+    .sb-acc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-3); }
+    .sb-acc-val { font-variant-numeric: tabular-nums; font-weight: 600; }
 
     /* ── Side-by-side columns ────────────────── */
     .matchup-cols { display: flex; align-items: flex-start; }
@@ -223,22 +256,7 @@
     .ai-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; opacity: 0.6; }
     .p-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
 
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 600;
-      line-height: 1.7;
-      flex-shrink: 0;
-    }
-    .pill-Q   { background: rgba(255,149,0,.13);  color: var(--amber); }
-    .pill-D   { background: rgba(255,59,48,.12);  color: var(--red);   }
-    .pill-Out, .pill-IR { background: rgba(255,59,48,.18); color: var(--red); }
-    .pill-start { background: rgba(52,199,89,.13); color: var(--green); }
-
-    .shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
+.shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
     .shap-up   { color: var(--green); }
     .shap-down { color: var(--red);   }
 
@@ -257,7 +275,7 @@
       font-size: 11px;
       font-variant-numeric: tabular-nums;
       font-weight: 600;
-      margin-top: 3px;
+      margin-top: 2px;
     }
     .actual-ok   { color: var(--green); }
     .actual-miss { color: var(--red); }
@@ -331,8 +349,9 @@
       .nav-user { display: none; }
       .container { padding: 14px 10px; }
       .scoreboard { padding: 16px 16px 14px; }
-      .sb-num { font-size: 28px; }
-      .sb-mid { padding: 0 12px 5px; }
+      .sb-val { font-size: 22px; }
+      .sb-val.dim, .sb-val.actual-val { font-size: 18px; }
+      .sb-divider-col { padding: 0 10px; }
       .freshness-bar { padding: 5px 14px; gap: 14px; }
       .btn { padding: 5px 10px; font-size: 12px; }
     }
@@ -400,8 +419,6 @@
       <div class="p-name-row">
         <span class="pname">{{ p.name }}</span>
         {% if p.llm_summary %}<span class="ai-dot" title="AI insight — tap to read"></span>{% endif %}
-        {% if p.injury_status %}<span class="pill pill-{{ p.injury_status }}">{{ p.injury_status }}</span>{% endif %}
-        {% if p.start_sit_alert %}<span class="pill pill-start">START</span>{% endif %}
         {% if has_shap %}
           <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>
         {% endif %}
@@ -537,20 +554,58 @@
     {# ── Scoreboard ─────────────────────────── #}
     <div class="scoreboard">
       <div class="sb-meta">{{ league.league_name }} · {{ league.scoring_format }} · Week {{ league.week }}{% if age_str %} · Report {{ age_str }}{% endif %}</div>
-      <div class="sb-scores">
-        <div class="sb-side">
-          <div class="sb-num">{{ "%.1f"|format(league.my_projected_total) }}</div>
-          <div class="sb-name">You{% if is_past %} proj{% endif %}</div>
-        </div>
-        <div class="sb-mid">
+
+      <div class="sb-grid">
+        {# Row 1: Model projections (always shown) #}
+        <div class="sb-row-label hl">Model</div>
+        <div class="sb-val">{{ "%.1f"|format(league.my_projected_total) }}</div>
+        <div class="sb-divider-col" style="grid-row:1/span 3">
           <span class="sb-vs">vs</span>
           <span class="sb-diff {{ 'ahead' if diff >= 0 else 'behind' }}">{{ "%+.1f"|format(diff) }}</span>
         </div>
-        <div class="sb-side right">
-          <div class="sb-num">{{ "%.1f"|format(league.opp_projected_total) }}</div>
-          <div class="sb-name">{{ league.opp_name }}{% if is_past %} proj{% endif %}</div>
-        </div>
+        <div class="sb-val right">{{ "%.1f"|format(league.opp_projected_total) }}</div>
+
+        {# Row 2: Sleeper projections (when available) #}
+        {% set my_slp = league.get('my_sleeper_projected_total') %}
+        {% set opp_slp = league.get('opp_sleeper_projected_total') %}
+        {% if my_slp is not none or opp_slp is not none %}
+        <div class="sb-row-label">Sleeper</div>
+        <div class="sb-val dim">{{ "%.1f"|format(my_slp) if my_slp is not none else "—" }}</div>
+        <div class="sb-val dim right">{{ "%.1f"|format(opp_slp) if opp_slp is not none else "—" }}</div>
+        {% endif %}
+
+        {# Row 3: Actual (past weeks only) #}
+        {% set my_act = league.get('my_actual_total') %}
+        {% set opp_act = league.get('opp_actual_total') %}
+        {% if my_act is not none or opp_act is not none %}
+        <div class="sb-row-label">Actual</div>
+        <div class="sb-val actual-val">{{ "%.1f"|format(my_act) if my_act is not none else "—" }}</div>
+        <div class="sb-val actual-val right">{{ "%.1f"|format(opp_act) if opp_act is not none else "—" }}</div>
+        {% endif %}
       </div>
+
+      {# Accuracy line — only when we have enough data #}
+      {% if accuracy and accuracy.weeks_counted >= 1 %}
+      <div class="sb-accuracy">
+        <div class="sb-acc-item">
+          <span class="sb-acc-label">Season accuracy</span>
+          <span class="sb-acc-val">{{ accuracy.weeks_counted }} wk{{ 's' if accuracy.weeks_counted != 1 else '' }}</span>
+        </div>
+        {% if accuracy.model_mae is not none %}
+        <div class="sb-acc-item">
+          <span class="sb-acc-label">Model avg err</span>
+          <span class="sb-acc-val">{{ "%.1f"|format(accuracy.model_mae) }} pts</span>
+        </div>
+        {% endif %}
+        {% if accuracy.sleeper_mae is not none %}
+        <div class="sb-acc-item">
+          <span class="sb-acc-label">Sleeper avg err</span>
+          <span class="sb-acc-val">{{ "%.1f"|format(accuracy.sleeper_mae) }} pts</span>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
     </div>
 
     {# ── Side-by-side roster columns ────────── #}
