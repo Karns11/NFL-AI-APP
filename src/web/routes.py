@@ -14,6 +14,7 @@ from src.news.db import (
     init_db, create_user, get_user_by_email,
     update_sleeper_username, get_all_users,
 )
+from src.predictions.predict import get_current_week, _CURRENT_SEASON
 
 logger = logging.getLogger(__name__)
 
@@ -99,10 +100,8 @@ def settings():
             flash("Please enter a Sleeper username.", "error")
             return render_template("settings.html")
 
-        # Validate the Sleeper username exists before saving
         try:
             from src.fantasy.sleeper import get_my_league_data
-            from src.predictions.predict import _CURRENT_SEASON
             leagues = get_my_league_data(sleeper_username, _CURRENT_SEASON)
             if not leagues:
                 flash(f"No Sleeper leagues found for '{sleeper_username}'. Check the username and try again.", "error")
@@ -121,7 +120,7 @@ def settings():
 @bp.route("/generate")
 @login_required
 def generate_report():
-    """Trigger pipeline for the current user, then redirect to dashboard."""
+    """Trigger pipeline for the current user and current week, then redirect."""
     sleeper_username = current_user.sleeper_username
     if not sleeper_username:
         return redirect(url_for("main.settings"))
@@ -156,7 +155,7 @@ def _fmt_age(iso_str: str | None) -> str:
         return "unknown"
 
 
-def get_data_freshness() -> dict:
+def get_data_freshness(week: int, season: int) -> dict:
     freshness = {
         "nfl_stats":     {"label": "NFL Stats",      "when": "never", "detail": ""},
         "injuries":      {"label": "Injury Reports", "when": "never", "detail": ""},
@@ -193,7 +192,7 @@ def get_data_freshness() -> dict:
 
     sleeper_username = getattr(current_user, "sleeper_username", None)
     if sleeper_username:
-        cached = report_cache.get(sleeper_username)
+        cached = report_cache.get(sleeper_username, week, season)
         if cached:
             freshness["report"]["when"] = _fmt_age(cached.generated_at)
             freshness["report"]["detail"] = f"Wk {cached.week} · {cached.season}"
@@ -208,9 +207,17 @@ def index():
         return redirect(url_for("main.settings"))
 
     sleeper_username = current_user.sleeper_username
-    cached = report_cache.get(sleeper_username)
-    age = report_cache.age_minutes(sleeper_username)
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
 
+    week_param = request.args.get("week", type=int)
+    week = week_param if week_param else current_week
+    week = max(1, min(week, 18))
+
+    cached = report_cache.get(sleeper_username, week, season)
+    age = report_cache.age_minutes(sleeper_username, week, season)
+
+    age_str = None
     if age is not None:
         if age < 60:
             age_str = f"{int(age)}m ago"
@@ -218,11 +225,17 @@ def index():
             age_str = f"{int(age // 60)}h ago"
         else:
             age_str = f"{int(age // 1440)}d ago"
-    else:
-        age_str = None
 
-    freshness = get_data_freshness()
-    return render_template("index.html", cached=cached, age_str=age_str, freshness=freshness)
+    freshness = get_data_freshness(week, season)
+    return render_template(
+        "index.html",
+        cached=cached,
+        week=week,
+        current_week=current_week,
+        season=season,
+        age_str=age_str,
+        freshness=freshness,
+    )
 
 
 # ── API endpoints ─────────────────────────────────────────────────────────────
@@ -235,7 +248,8 @@ def refresh():
         return jsonify({"status": "error", "message": "No Sleeper username set"}), 400
     try:
         from src.web.pipeline import run_pipeline
-        run_pipeline(username=sleeper_username, use_llm=False)
+        current_week = get_current_week(_CURRENT_SEASON)
+        run_pipeline(username=sleeper_username, week=current_week, use_llm=False)
         return jsonify({"status": "ok", "message": "Report refreshed"})
     except Exception as e:
         logger.error(f"Refresh failed for {sleeper_username}: {e}")
@@ -250,8 +264,40 @@ def refresh_full():
         return jsonify({"status": "error", "message": "No Sleeper username set"}), 400
     try:
         from src.web.pipeline import run_pipeline
-        run_pipeline(username=sleeper_username, use_llm=True)
+        current_week = get_current_week(_CURRENT_SEASON)
+        run_pipeline(username=sleeper_username, week=current_week, use_llm=True)
         return jsonify({"status": "ok", "message": "Full report refreshed"})
     except Exception as e:
         logger.error(f"Full refresh failed for {sleeper_username}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@bp.route("/api/generate-week", methods=["POST"])
+@login_required
+def generate_week():
+    """Generate a report for a specific week (past, current, or future)."""
+    sleeper_username = current_user.sleeper_username
+    if not sleeper_username:
+        return jsonify({"status": "error", "message": "No Sleeper username set"}), 400
+
+    data = request.get_json(silent=True) or {}
+    current_week = get_current_week(_CURRENT_SEASON)
+    week = data.get("week", current_week)
+
+    try:
+        week = int(week)
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid week"}), 400
+
+    try:
+        from src.web.pipeline import run_pipeline
+        run_pipeline(
+            username=sleeper_username,
+            week=week,
+            season=_CURRENT_SEASON,
+            use_llm=(week == current_week),
+        )
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        logger.error(f"generate-week {week} failed for {sleeper_username}: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500

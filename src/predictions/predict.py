@@ -179,8 +179,18 @@ def get_player_features(
     if len(player_df) == 0:
         return None, None, None
 
-    # Get position and team from most recent games
-    recent = player_df.sort(["season", "week"]).tail(5)
+    # Filter to rows BEFORE the target week — prevents data leakage when
+    # generating historical reports (e.g. Week 3 prediction must only use
+    # stats from Weeks 1-2, not Weeks 4-6 which were available at query time).
+    prior_df = player_df.filter(
+        (pl.col("season") < season) |
+        ((pl.col("season") == season) & (pl.col("week") < week))
+    )
+    if len(prior_df) == 0:
+        return None, None, None
+
+    # Get position and team from the most recent prior games
+    recent = prior_df.sort(["season", "week"]).tail(5)
     position = recent["position"].tail(1).to_list()[0] if "position" in recent.columns else None
     team = recent["team"].tail(1).to_list()[0] if "team" in recent.columns else None
     player_id = recent["player_id"].tail(1).to_list()[0] if "player_id" in recent.columns else None
@@ -188,9 +198,8 @@ def get_player_features(
     if position is None:
         return None, None, None
 
-    # Get features for the most recent game we have — these represent the player's
-    # rolling stats going INTO the requested week (last known state)
-    latest_row = player_df.sort(["season", "week"]).tail(1)
+    # Get features from the most recent row before the target week
+    latest_row = prior_df.sort(["season", "week"]).tail(1)
 
     feature_cols = get_phase2_feature_columns(position, has_vegas=True)
     feature_cols = [f for f in feature_cols if f in latest_row.columns]

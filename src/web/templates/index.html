@@ -42,7 +42,6 @@
       gap: 16px;
     }
     .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: 0.1px; }
-    .nav-week  { font-size: 12px; color: var(--text-3); font-weight: 500; }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
     .nav-user  { font-size: 13px; color: var(--text-2); }
     .nav-sep   { width: 1px; height: 16px; background: var(--border); }
@@ -94,7 +93,43 @@
     .fi-detail { font-size: 11px; color: var(--text-3); }
 
     /* ── Layout ──────────────────────────────── */
-    .container { max-width: 860px; margin: 0 auto; padding: 24px 16px; }
+    .container { max-width: 1060px; margin: 0 auto; padding: 20px 16px; }
+
+    /* ── Week navigator ──────────────────────── */
+    .week-strip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .week-btn {
+      padding: 5px 11px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text-2);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: transparent;
+      transition: background 0.1s, color 0.1s;
+      line-height: 1;
+    }
+    .week-btn:hover { background: var(--surface-hi); color: var(--text-1); }
+    .week-btn.disabled { opacity: 0.28; cursor: default; pointer-events: none; }
+    .week-label { font-size: 14px; font-weight: 600; color: var(--text-1); }
+    .week-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      margin-left: 4px;
+    }
+    .week-tag-current { background: rgba(79,142,247,.15); color: var(--accent); }
+    .week-tag-past    { background: rgba(100,100,112,.12); color: var(--text-3); }
+    .week-tag-future  { background: rgba(255,149,0,.12);  color: var(--amber); }
 
     /* ── League card ─────────────────────────── */
     .league-card {
@@ -118,10 +153,7 @@
       text-transform: uppercase;
       margin-bottom: 14px;
     }
-    .sb-scores {
-      display: flex;
-      align-items: flex-end;
-    }
+    .sb-scores { display: flex; align-items: flex-end; }
     .sb-side { flex: 1; }
     .sb-side.right { text-align: right; }
     .sb-num {
@@ -132,32 +164,25 @@
       letter-spacing: -1.5px;
       line-height: 1;
     }
-    .sb-name {
-      font-size: 12px;
-      color: var(--text-2);
-      margin-top: 5px;
-      font-weight: 500;
-    }
+    .sb-name { font-size: 12px; color: var(--text-2); margin-top: 5px; font-weight: 500; }
     .sb-mid {
-      padding: 0 18px;
+      padding: 0 18px 6px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 3px;
-      padding-bottom: 6px;
     }
     .sb-vs   { font-size: 12px; color: var(--text-3); font-weight: 500; letter-spacing: 0.5px; }
-    .sb-diff {
-      font-size: 12px;
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
+    .sb-diff { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
     .sb-diff.ahead  { color: var(--green); }
     .sb-diff.behind { color: var(--red); }
 
-    /* ── Section label ───────────────────────── */
-    .sec-label {
-      padding: 7px 20px;
+    /* ── Side-by-side columns ────────────────── */
+    .matchup-cols { display: flex; align-items: flex-start; }
+    .roster-col { flex: 1; min-width: 0; }
+    .col-rule { width: 1px; background: var(--border); align-self: stretch; flex-shrink: 0; }
+    .col-header {
+      padding: 7px 14px;
       font-size: 10px;
       font-weight: 600;
       letter-spacing: 1px;
@@ -165,14 +190,14 @@
       color: var(--text-3);
       border-bottom: 1px solid var(--border-faint);
     }
-    .sec-divider { height: 1px; background: var(--border); }
+    .col-header.opp { color: var(--text-2); }
 
     /* ── Player rows ─────────────────────────── */
     .player-item {
-      padding: 11px 20px;
+      padding: 10px 14px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       border-bottom: 1px solid var(--border-faint);
       transition: background 0.1s;
       position: relative;
@@ -181,46 +206,29 @@
     .player-item:hover { background: var(--surface-hi); }
     .player-item.has-summary { cursor: pointer; }
 
-    /* starter dot */
-    .s-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      flex-shrink: 0;
-    }
+    .s-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
     .s-dot-ph { width: 6px; flex-shrink: 0; }
 
-    /* identity */
-    .p-identity { flex: 1; min-width: 0; }
-    .p-name-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+    .p-identity { flex: 1; min-width: 0; overflow: hidden; }
+    .p-name-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
     .pname {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text-1);
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
     }
-    .ai-dot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: var(--accent);
-      flex-shrink: 0;
-      opacity: 0.6;
-      title: "AI insight — tap to read";
-    }
-    .p-meta { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .ai-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; opacity: 0.6; }
+    .p-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
 
-    /* status pills */
     .pill {
       display: inline-flex;
       align-items: center;
-      padding: 1px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       line-height: 1.7;
       flex-shrink: 0;
@@ -230,28 +238,31 @@
     .pill-Out, .pill-IR { background: rgba(255,59,48,.18); color: var(--red); }
     .pill-start { background: rgba(52,199,89,.13); color: var(--green); }
 
-    /* SHAP arrow */
-    .shap-arrow { font-size: 11px; flex-shrink: 0; cursor: default; }
+    .shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
     .shap-up   { color: var(--green); }
     .shap-down { color: var(--red);   }
 
-    /* projection block */
-    .proj-block {
-      text-align: right;
-      flex-shrink: 0;
-      min-width: 52px;
-    }
+    /* ── Projection + actual block ───────────── */
+    .proj-block { text-align: right; flex-shrink: 0; min-width: 52px; }
     .proj-num {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       color: var(--text-1);
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.5px;
       line-height: 1;
     }
-    .proj-num.empty { font-size: 14px; color: var(--text-3); font-weight: 400; }
+    .proj-num.empty { font-size: 13px; color: var(--text-3); font-weight: 400; }
+    .actual-pts {
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      margin-top: 3px;
+    }
+    .actual-ok   { color: var(--green); }
+    .actual-miss { color: var(--red); }
+    .actual-neu  { color: var(--text-2); }
 
-    /* range bar */
     .rbar {
       margin-top: 5px;
       height: 3px;
@@ -276,14 +287,10 @@
     }
 
     /* summary panel */
-    .summary-panel {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.22s ease;
-    }
+    .summary-panel { max-height: 0; overflow: hidden; transition: max-height 0.22s ease; }
     .summary-panel.open { max-height: 240px; }
     .summary-inner {
-      padding: 10px 20px 14px 36px;
+      padding: 9px 14px 12px 28px;
       font-size: 12px;
       color: var(--text-2);
       line-height: 1.7;
@@ -291,11 +298,8 @@
       background: var(--bg);
     }
 
-    /* ── Empty state ─────────────────────────── */
-    .empty {
-      padding: 60px 24px;
-      text-align: center;
-    }
+    /* ── Empty / not-generated states ───────── */
+    .empty { padding: 60px 24px; text-align: center; }
     .empty h2 { font-size: 18px; font-weight: 600; color: var(--text-1); margin-bottom: 8px; }
     .empty p  { font-size: 14px; color: var(--text-2); margin-bottom: 24px; }
 
@@ -317,16 +321,18 @@
     #toast.err { background: rgba(255,59,48,.18);  color: var(--red);   border: 1px solid rgba(255,59,48,.25); }
 
     /* ── Mobile ──────────────────────────────── */
+    @media (max-width: 680px) {
+      .matchup-cols { flex-direction: column; }
+      .col-rule { width: auto; height: 1px; align-self: auto; }
+      .pname { max-width: 200px; }
+    }
     @media (max-width: 600px) {
       .nav { padding: 0 14px; gap: 10px; }
       .nav-user { display: none; }
-      .container { padding: 16px 10px; }
+      .container { padding: 14px 10px; }
       .scoreboard { padding: 16px 16px 14px; }
       .sb-num { font-size: 28px; }
       .sb-mid { padding: 0 12px 5px; }
-      .player-item { padding: 10px 14px; }
-      .sec-label { padding: 6px 14px; }
-      .proj-num { font-size: 16px; }
       .freshness-bar { padding: 5px 14px; gap: 14px; }
       .btn { padding: 5px 10px; font-size: 12px; }
     }
@@ -334,7 +340,8 @@
 </head>
 <body>
 
-{# ── Feature label macro ────────────────────────── #}
+{# ── Macros ─────────────────────────────────────── #}
+
 {% macro feat_name(f) %}{{ f
   .replace("fp_roll4_mean","Form")
   .replace("fp_ewm","Form")
@@ -347,23 +354,120 @@
   .replace("opp_fp_allowed_roll4","Opp DEF")
   .replace("_"," ") }}{% endmacro %}
 
+{% macro player_row(p, show_starter=false) %}
+  {# SHAP net direction + tooltip #}
+  {% set pos_sum = namespace(v=0.0) %}
+  {% for feat, val in (p.shap_positive or []) %}{% set pos_sum.v = pos_sum.v + val %}{% endfor %}
+  {% set neg_sum = namespace(v=0.0) %}
+  {% for feat, val in (p.shap_negative or []) %}{% set neg_sum.v = neg_sum.v + (val|abs) %}{% endfor %}
+  {% set has_shap = (p.shap_positive or p.shap_negative) %}
+  {% set net_up = (pos_sum.v >= neg_sum.v) %}
+
+  {% set tip = namespace(text="") %}
+  {% for feat, val in (p.shap_positive or [])[:2] %}
+    {% set seg = "▲" ~ "%.1f"|format(val) ~ " " ~ feat_name(feat)|trim %}
+    {% set tip.text = tip.text ~ (seg if loop.first else " · " ~ seg) %}
+  {% endfor %}
+  {% for feat, val in (p.shap_negative or [])[:1] %}
+    {% set seg = "▼" ~ "%.1f"|format(val|abs) ~ " " ~ feat_name(feat)|trim %}
+    {% set tip.text = tip.text ~ (" · " if tip.text else "") ~ seg %}
+  {% endfor %}
+
+  {# Range bar pct #}
+  {% if p.predicted is not none and p.ceiling is not none and p.floor is not none and (p.ceiling - p.floor) > 0.01 %}
+    {% set raw_pct = (p.predicted - p.floor) / (p.ceiling - p.floor) * 100 %}
+    {% set pct = [0.0, [100.0, raw_pct]|min]|max %}
+  {% else %}
+    {% set pct = 50.0 %}
+  {% endif %}
+
+  {# Actual score color #}
+  {% if p.actual_points is not none and p.floor is not none %}
+    {% set act_class = "actual-ok" if p.actual_points >= p.floor else "actual-miss" %}
+  {% else %}
+    {% set act_class = "actual-neu" %}
+  {% endif %}
+
+  <div class="player-item {{ 'has-summary' if p.llm_summary else '' }}"
+       {% if p.llm_summary %}onclick="toggleSummary(this)"{% endif %}>
+    {% if show_starter and p.is_starter %}
+      <span class="s-dot" title="In your lineup"></span>
+    {% else %}
+      <span class="s-dot-ph"></span>
+    {% endif %}
+
+    <div class="p-identity">
+      <div class="p-name-row">
+        <span class="pname">{{ p.name }}</span>
+        {% if p.llm_summary %}<span class="ai-dot" title="AI insight — tap to read"></span>{% endif %}
+        {% if p.injury_status %}<span class="pill pill-{{ p.injury_status }}">{{ p.injury_status }}</span>{% endif %}
+        {% if p.start_sit_alert %}<span class="pill pill-start">START</span>{% endif %}
+        {% if has_shap %}
+          <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>
+        {% endif %}
+      </div>
+      <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
+    </div>
+
+    <div class="proj-block">
+      {% if p.predicted is not none %}
+        <div class="proj-num">{{ "%.1f"|format(p.predicted) }}</div>
+        {% if p.actual_points is not none %}
+          <div class="actual-pts {{ act_class }}" title="Actual score">{{ "%.1f"|format(p.actual_points) }}</div>
+        {% else %}
+          <div class="rbar" title="Floor {{ '%.1f'|format(p.floor) }} · Ceil {{ '%.1f'|format(p.ceiling) }}">
+            <div class="rbar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div>
+            <div class="rbar-dot"  style="left:{{ "%.1f"|format(pct) }}%"></div>
+          </div>
+        {% endif %}
+      {% else %}
+        {% if p.actual_points is not none %}
+          <div class="proj-num empty">—</div>
+          <div class="actual-pts actual-neu">{{ "%.1f"|format(p.actual_points) }}</div>
+        {% else %}
+          <div class="proj-num empty">—</div>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  {% if p.llm_summary %}
+  <div class="summary-panel">
+    <div class="summary-inner">{{ p.llm_summary }}</div>
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{# Position sort order #}
+{% set POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'] %}
+
+{# Week state #}
+{% set is_past   = (week < current_week) %}
+{% set is_future = (week > current_week) %}
+
+{# ── Page ───────────────────────────────────────── #}
+
 <nav class="nav">
   <span class="nav-brand">NFL Fantasy AI</span>
-  {% if cached %}
-    <span class="nav-week">Wk {{ cached.week }} · {{ cached.season }}</span>
-  {% endif %}
   <div class="nav-right">
     <span class="nav-user">{{ current_user.display_name }}</span>
     <span class="nav-sep"></span>
     <a href="{{ url_for('main.settings') }}" class="nav-link">Settings</a>
     <a href="{{ url_for('main.logout') }}" class="nav-link">Sign out</a>
-    {% if cached %}
+    {% if not is_past and not is_future %}
+      {% if cached %}
       <span class="nav-sep"></span>
       <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
         Refresh <span class="spinner" id="spin-refresh"></span>
       </button>
       <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
         Refresh + AI <span class="spinner" id="spin-ai"></span>
+      </button>
+      {% endif %}
+    {% else %}
+      <span class="nav-sep"></span>
+      <button class="btn btn-secondary" id="btn-regen" onclick="doGenerateWeek({{ week }})">
+        Regenerate <span class="spinner" id="spin-regen"></span>
       </button>
     {% endif %}
   </div>
@@ -380,14 +484,52 @@
 </div>
 
 <div class="container">
-{% if not cached %}
-  <div class="empty">
-    <h2>No report yet</h2>
-    <p>Generate your first report — takes about 60 seconds.</p>
-    <a href="{{ url_for('main.generate_report') }}" class="btn btn-primary" style="text-decoration:none;display:inline-flex;">Generate Report</a>
+
+  {# ── Week navigator ──────────────────────── #}
+  <div class="week-strip">
+    {% if week > 1 %}
+      <a href="/?week={{ week - 1 }}" class="week-btn">‹ Wk {{ week - 1 }}</a>
+    {% else %}
+      <span class="week-btn disabled">‹</span>
+    {% endif %}
+
+    <span class="week-label">
+      Week {{ week }}
+      {% if not is_past and not is_future %}
+        <span class="week-tag week-tag-current">Current</span>
+      {% elif is_past %}
+        <span class="week-tag week-tag-past">Past</span>
+      {% else %}
+        <span class="week-tag week-tag-future">Future</span>
+      {% endif %}
+    </span>
+
+    {% if week < 18 %}
+      <a href="/?week={{ week + 1 }}" class="week-btn">Wk {{ week + 1 }} ›</a>
+    {% else %}
+      <span class="week-btn disabled">›</span>
+    {% endif %}
   </div>
 
-{% else %}
+  {# ── Content ─────────────────────────────── #}
+  {% if not cached %}
+  <div class="empty">
+    {% if is_past %}
+      <h2>No report for Week {{ week }}</h2>
+      <p>Generate historical projections for this week — about 60 seconds. No AI summaries for past weeks.</p>
+    {% elif is_future %}
+      <h2>No report for Week {{ week }}</h2>
+      <p>Generate a preview for this upcoming week using current player stats — about 60 seconds.</p>
+    {% else %}
+      <h2>No report yet</h2>
+      <p>Generate your first report — takes about 60 seconds.</p>
+    {% endif %}
+    <button class="btn btn-primary" id="btn-gen" onclick="doGenerateWeek({{ week }})">
+      Generate Week {{ week }} Report <span class="spinner" id="spin-gen"></span>
+    </button>
+  </div>
+
+  {% else %}
   {% for league in cached.leagues %}
   {% set diff = league.my_projected_total - league.opp_projected_total %}
   <div class="league-card">
@@ -398,7 +540,7 @@
       <div class="sb-scores">
         <div class="sb-side">
           <div class="sb-num">{{ "%.1f"|format(league.my_projected_total) }}</div>
-          <div class="sb-name">You</div>
+          <div class="sb-name">You{% if is_past %} proj{% endif %}</div>
         </div>
         <div class="sb-mid">
           <span class="sb-vs">vs</span>
@@ -406,125 +548,48 @@
         </div>
         <div class="sb-side right">
           <div class="sb-num">{{ "%.1f"|format(league.opp_projected_total) }}</div>
-          <div class="sb-name">{{ league.opp_name }}</div>
+          <div class="sb-name">{{ league.opp_name }}{% if is_past %} proj{% endif %}</div>
         </div>
       </div>
     </div>
 
-    {# ── My Roster ──────────────────────────── #}
-    <div class="sec-label">My Roster</div>
-    <div class="player-list">
-      {% for p in league.my_roster %}
+    {# ── Side-by-side roster columns ────────── #}
+    <div class="matchup-cols">
 
-        {# SHAP net direction + tooltip #}
-        {% set pos_sum = namespace(v=0.0) %}
-        {% for feat, val in (p.shap_positive or []) %}{% set pos_sum.v = pos_sum.v + val %}{% endfor %}
-        {% set neg_sum = namespace(v=0.0) %}
-        {% for feat, val in (p.shap_negative or []) %}{% set neg_sum.v = neg_sum.v + (val|abs) %}{% endfor %}
-        {% set has_shap = (p.shap_positive or p.shap_negative) %}
-        {% set net_up = (pos_sum.v >= neg_sum.v) %}
-
-        {# Tooltip text #}
-        {% set tip = namespace(text="") %}
-        {% for feat, val in (p.shap_positive or [])[:2] %}
-          {% set seg = "▲" ~ "%.1f"|format(val) ~ "\u202f" ~ feat_name(feat)|trim %}
-          {% set tip.text = tip.text ~ (seg if loop.first else " · " ~ seg) %}
+      <div class="roster-col">
+        <div class="col-header">My Roster</div>
+        {% for pos in POS_ORDER %}
+          {% for p in league.my_roster if p.position == pos %}
+            {{ player_row(p, show_starter=true) }}
+          {% endfor %}
         {% endfor %}
-        {% for feat, val in (p.shap_negative or [])[:1] %}
-          {% set seg = "▼" ~ "%.1f"|format(val|abs) ~ "\u202f" ~ feat_name(feat)|trim %}
-          {% set tip.text = tip.text ~ (" · " if tip.text else "") ~ seg %}
+        {% for p in league.my_roster if p.position not in POS_ORDER %}
+          {{ player_row(p, show_starter=true) }}
         {% endfor %}
+      </div>
 
-        {# Range bar pct (0–100) #}
-        {% if p.predicted is not none and p.ceiling is not none and p.floor is not none and (p.ceiling - p.floor) > 0.01 %}
-          {% set raw_pct = (p.predicted - p.floor) / (p.ceiling - p.floor) * 100 %}
-          {% set pct = [0.0, [100.0, raw_pct]|min]|max %}
-        {% else %}
-          {% set pct = 50.0 %}
+      <div class="col-rule"></div>
+
+      <div class="roster-col">
+        <div class="col-header opp">{{ league.opp_name }}</div>
+        {% if league.opp_starters %}
+          {% for pos in POS_ORDER %}
+            {% for p in league.opp_starters if p.position == pos %}
+              {{ player_row(p) }}
+            {% endfor %}
+          {% endfor %}
+          {% for p in league.opp_starters if p.position not in POS_ORDER %}
+            {{ player_row(p) }}
+          {% endfor %}
         {% endif %}
-
-      <div class="player-item {{ 'has-summary' if p.llm_summary else '' }}"
-           {% if p.llm_summary %}onclick="toggleSummary(this)"{% endif %}>
-        {% if p.is_starter %}<span class="s-dot" title="In your lineup"></span>{% else %}<span class="s-dot-ph"></span>{% endif %}
-
-        <div class="p-identity">
-          <div class="p-name-row">
-            <span class="pname">{{ p.name }}</span>
-            {% if p.llm_summary %}<span class="ai-dot" title="AI insight — tap to read"></span>{% endif %}
-            {% if p.injury_status %}<span class="pill pill-{{ p.injury_status }}">{{ p.injury_status }}</span>{% endif %}
-            {% if p.start_sit_alert %}<span class="pill pill-start">START</span>{% endif %}
-            {% if has_shap %}
-              <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>
-            {% endif %}
-          </div>
-          <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
-        </div>
-
-        <div class="proj-block">
-          {% if p.predicted is not none %}
-            <div class="proj-num">{{ "%.1f"|format(p.predicted) }}</div>
-            <div class="rbar" title="Floor {{ '%.1f'|format(p.floor) }} · Ceil {{ '%.1f'|format(p.ceiling) }}">
-              <div class="rbar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div>
-              <div class="rbar-dot"  style="left:{{ "%.1f"|format(pct) }}%"></div>
-            </div>
-          {% else %}
-            <div class="proj-num empty">—</div>
-          {% endif %}
-        </div>
       </div>
 
-      {% if p.llm_summary %}
-      <div class="summary-panel">
-        <div class="summary-inner">{{ p.llm_summary }}</div>
-      </div>
-      {% endif %}
-
-      {% endfor %}
     </div>
-
-    {# ── Opponent Starters ──────────────────── #}
-    {% if league.opp_starters %}
-    <div class="sec-divider"></div>
-    <div class="sec-label" style="color:var(--text-2)">{{ league.opp_name }}</div>
-    <div class="player-list">
-      {% for p in league.opp_starters %}
-
-        {% if p.predicted is not none and p.ceiling is not none and p.floor is not none and (p.ceiling - p.floor) > 0.01 %}
-          {% set raw_pct = (p.predicted - p.floor) / (p.ceiling - p.floor) * 100 %}
-          {% set pct = [0.0, [100.0, raw_pct]|min]|max %}
-        {% else %}
-          {% set pct = 50.0 %}
-        {% endif %}
-
-      <div class="player-item">
-        <span class="s-dot-ph"></span>
-        <div class="p-identity">
-          <div class="p-name-row">
-            <span class="pname">{{ p.name }}</span>
-            {% if p.injury_status %}<span class="pill pill-{{ p.injury_status }}">{{ p.injury_status }}</span>{% endif %}
-          </div>
-          <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
-        </div>
-        <div class="proj-block">
-          {% if p.predicted is not none %}
-            <div class="proj-num">{{ "%.1f"|format(p.predicted) }}</div>
-            <div class="rbar" title="Floor {{ '%.1f'|format(p.floor) }} · Ceil {{ '%.1f'|format(p.ceiling) }}">
-              <div class="rbar-fill" style="width:{{ "%.1f"|format(pct) }}%"></div>
-              <div class="rbar-dot"  style="left:{{ "%.1f"|format(pct) }}%"></div>
-            </div>
-          {% else %}
-            <div class="proj-num empty">—</div>
-          {% endif %}
-        </div>
-      </div>
-
-      {% endfor %}
-    </div>
-    {% endif %}
 
   </div>
   {% endfor %}
-{% endif %}
+  {% endif %}
+
 </div>
 
 <div id="toast"></div>
@@ -541,7 +606,36 @@ function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'show ' + type;
-  setTimeout(() => { t.className = ''; }, 3000);
+  setTimeout(() => { t.className = ''; }, 3500);
+}
+
+function doGenerateWeek(week) {
+  const btn  = document.getElementById('btn-gen') || document.getElementById('btn-regen');
+  const spin = document.getElementById('spin-gen') || document.getElementById('spin-regen');
+  if (btn)  btn.disabled = true;
+  if (spin) spin.style.display = 'inline-block';
+
+  fetch('/api/generate-week', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({week: week})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'ok') {
+      showToast('Report generated', 'ok');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast('Error: ' + d.message, 'err');
+      if (btn)  btn.disabled = false;
+      if (spin) spin.style.display = 'none';
+    }
+  })
+  .catch(() => {
+    showToast('Request failed', 'err');
+    if (btn)  btn.disabled = false;
+    if (spin) spin.style.display = 'none';
+  });
 }
 
 function doRefresh(withAI) {

@@ -178,6 +178,23 @@ def _enrich_league(league: dict, user_id: str) -> dict:
     return league
 
 
+def get_player_actual_scores(league_id: str, week: int) -> dict[str, float]:
+    """
+    Returns {sleeper_player_id: points_scored} for a completed week.
+    Returns empty dict for future weeks or if the API call fails.
+    """
+    try:
+        matchups = get_matchups(league_id, week)
+        scores = {}
+        for m in matchups:
+            for pid, pts in (m.get("players_points") or {}).items():
+                if pts is not None:
+                    scores[str(pid)] = float(pts)
+        return scores
+    except Exception:
+        return {}
+
+
 def get_my_matchup(league: dict, week: int) -> tuple[dict | None, dict | None]:
     """
     Returns (my_matchup, opponent_matchup) for the given week.

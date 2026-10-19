@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from src.news.db import init_db, get_all_users
 from src.news.injury_scraper import run_scrape
 from src.news.rss_fetcher import fetch_all_feeds
-from src.fantasy.sleeper import get_my_league_data
+from src.fantasy.sleeper import get_my_league_data, get_player_actual_scores
 from src.predictions.predict import build_feature_df, _CURRENT_SEASON, get_current_week
 from src.predictions.weekly import build_full_league_report
 from src.web import report_cache
@@ -39,7 +39,8 @@ def _serialize_card(card) -> dict:
         "llm_summary": card.llm_summary,
         "opponent": card.opponent,
         "home_away": card.home_away,
-        "start_sit_alert": None,  # filled in below
+        "start_sit_alert": None,   # filled in below
+        "actual_points": None,     # filled in for past weeks
     }
 
 
@@ -63,21 +64,28 @@ def run_pipeline(
         fetch_all_feeds()
 
     resolved_week = week or get_current_week(season)
+    current_week = get_current_week(season)
+    is_past = resolved_week < current_week
+
+    # LLM summaries only make sense for the current week
+    if resolved_week != current_week:
+        use_llm = False
+
     leagues = get_my_league_data(username, season)
     feature_df, schedules_df = build_feature_df()
 
     bundle_cache = {}
     serialized_leagues = []
 
-    # Build a lookup of existing LLM summaries from the prior cache so a
-    # no-LLM refresh doesn't wipe out summaries that were already generated.
+    # Preserve existing LLM summaries across no-LLM refreshes of the current week
     prior_summaries: dict[str, str] = {}
-    prior = report_cache.get(username)
-    if prior and not use_llm:
-        for prior_league in prior.leagues:
-            for p in prior_league.get("my_roster", []):
-                if p.get("llm_summary") and p.get("name"):
-                    prior_summaries[p["name"].lower()] = p["llm_summary"]
+    if not use_llm and not is_past:
+        prior = report_cache.get(username, resolved_week, season)
+        if prior:
+            for prior_league in prior.leagues:
+                for p in prior_league.get("my_roster", []):
+                    if p.get("llm_summary") and p.get("name"):
+                        prior_summaries[p["name"].lower()] = p["llm_summary"]
 
     for league in leagues:
         report, starter_cards, bench_cards, opp_cards = build_full_league_report(
@@ -90,29 +98,55 @@ def run_pipeline(
             use_llm=use_llm,
         )
 
+        # Fetch actual scores for past weeks
+        actual_scores: dict[str, float] = {}
+        if is_past:
+            actual_scores = get_player_actual_scores(report.league_id, resolved_week)
+
         # Build a player-keyed set of start/sit alert names for badge rendering
         alert_names: set[str] = set()
         for alert in report.start_sit_alerts:
-            # Alert format: "  ⚠  START PlayerName (pts) over ..."
             parts = alert.split("START ")
             if len(parts) > 1:
                 name_part = parts[1].split(" (")[0].strip()
                 alert_names.add(name_part.lower())
 
-        # Merge all roster cards (starters + bench) into one unified list
+        _SKIP_POS = {"K", "DEF", "DL", "LB", "DB", "IDP"}
+
+        def _skip(card) -> bool:
+            if not card.name:
+                return True
+            if card.name.strip().isdigit():       # unresolved numeric Sleeper ID
+                return True
+            if card.position in _SKIP_POS:        # kicker / defense / IDP
+                return True
+            if card.position in ("?", ""):        # unresolved position (e.g. team DEF "ATL")
+                return True
+            return False
+
         all_my_cards = []
         for card in starter_cards + bench_cards:
+            if _skip(card):
+                continue
             d = _serialize_card(card)
             if card.name.lower() in alert_names:
                 d["start_sit_alert"] = True
-            # Preserve prior LLM summary if this run didn't generate one
             if not d["llm_summary"] and card.name.lower() in prior_summaries:
                 d["llm_summary"] = prior_summaries[card.name.lower()]
+            if actual_scores and card.sleeper_id:
+                d["actual_points"] = actual_scores.get(str(card.sleeper_id))
             all_my_cards.append(d)
 
         all_my_cards.sort(key=lambda c: c["predicted"] or 0, reverse=True)
 
-        opp_serialized = [_serialize_card(c) for c in opp_cards]
+        opp_serialized = []
+        for card in opp_cards:
+            if _skip(card):
+                continue
+            d = _serialize_card(card)
+            if actual_scores and card.sleeper_id:
+                d["actual_points"] = actual_scores.get(str(card.sleeper_id))
+            opp_serialized.append(d)
         opp_serialized.sort(key=lambda c: c["predicted"] or 0, reverse=True)
 
         opp_name = getattr(report, "_opp_name", "Opponent")
@@ -139,7 +173,7 @@ def run_pipeline(
         leagues=serialized_leagues,
     )
     report_cache.set(username, cached)
-    logger.info(f"Pipeline complete — {len(leagues)} leagues cached for {username}")
+    logger.info(f"Pipeline complete — {len(leagues)} leagues cached for {username} wk{resolved_week}")
 
 
 def run_pipeline_for_all_users(use_llm: bool = False, refresh_injuries: bool = False) -> None:
