@@ -276,6 +276,12 @@
       background: rgba(142,142,147,.15); color: var(--text-3);
       flex-shrink: 0;
     }
+    .no-data-tag {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.5px;
+      padding: 1px 4px; border-radius: 3px;
+      background: rgba(142,142,147,.10); color: var(--text-3);
+      flex-shrink: 0;
+    }
     .p-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
 
 .shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
@@ -442,6 +448,7 @@
       <div class="p-name-row">
         <span class="pname">{{ p.name }}</span>
         {% if p.get('on_bye') %}<span class="bye-tag">BYE</span>{% endif %}
+        {% if p.predicted is none and not p.get('on_bye') %}<span class="no-data-tag">No projection</span>{% endif %}
         {% if p.llm_summary %}<span class="ai-dot" title="AI insight — tap to read"></span>{% endif %}
         {% if has_shap %}
           <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>

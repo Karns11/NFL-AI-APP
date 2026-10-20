@@ -242,6 +242,16 @@ def get_player_features(
     if position is None:
         return None, None, None
 
+    # Guard: reject stale matches (retired player with same last name).
+    # If the best match has no data within 2 seasons of the target, it's the wrong player.
+    max_prior_season = int(prior_df["season"].max())
+    if season - max_prior_season > 2:
+        logger.debug(
+            f"Rejecting stale match for {player_name}: last data in {max_prior_season}, "
+            f"target season {season}"
+        )
+        return None, None, None
+
     # Get features from the most recent row before the target week
     latest_row = prior_df.sort(["season", "week"]).tail(1)
 
