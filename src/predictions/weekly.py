@@ -86,8 +86,25 @@ def _project_full(
 
     try:
         pred = predict_player(bundle, features)
+        raw_predicted = pred["predicted"]
+        raw_floor     = pred["floor"]
+        raw_ceiling   = pred["ceiling"]
+
+        # Blend toward season-to-date PPG to dampen single-game outlier inflation.
+        # season_avg_fp is already in features (expanding avg, lagged 1 game).
+        BLEND = 0.60  # 60% model, 40% season avg
+        season_avg = features.get("season_avg_fp")
+        if season_avg and season_avg > 0:
+            blended = BLEND * raw_predicted + (1 - BLEND) * season_avg
+            delta = blended - raw_predicted
+            predicted = blended
+            floor     = raw_floor   + delta
+            ceiling   = raw_ceiling + delta
+        else:
+            predicted, floor, ceiling = raw_predicted, raw_floor, raw_ceiling
+
         return (
-            pred["predicted"], pred["floor"], pred["ceiling"],
+            predicted, floor, ceiling,
             pred["shap_top_positive"], pred["shap_top_negative"],
         )
     except Exception as e:
