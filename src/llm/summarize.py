@@ -38,6 +38,7 @@ def _build_prompt(
     injury_record: dict | None,
     news_items: list[dict],
     teammate_injuries: list[dict] | None = None,
+    on_bye: bool = False,
 ) -> str:
     """Build the prompt for Haiku summarization."""
     lines = [
@@ -48,6 +49,14 @@ def _build_prompt(
         lines.append(f"Position: {position}")
     if team:
         lines.append(f"Team: {team}")
+
+    if on_bye:
+        lines.append(f"\nSchedule: {team} has a BYE WEEK this week — {player_name} will NOT play.")
+        lines.append(
+            "\nTask: Write 1 sentence noting this player is on bye this week and cannot be started. "
+            "Be direct. Do NOT include headers — just the summary text."
+        )
+        return "\n".join(lines)
 
     if injury_record:
         lines.append(f"\nInjury Report:")
@@ -101,6 +110,7 @@ def summarize_player(
     injury_record: dict | None = None,
     news_items: list[dict] | None = None,
     teammate_injuries: list[dict] | None = None,
+    on_bye: bool = False,
     force_refresh: bool = False,
 ) -> str:
     """
@@ -126,7 +136,7 @@ def summarize_player(
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        prompt = _build_prompt(player_name, week, season, position, team, injury_record, news_items or [], teammate_injuries)
+        prompt = _build_prompt(player_name, week, season, position, team, injury_record, news_items or [], teammate_injuries, on_bye=on_bye)
 
         message = client.messages.create(
             model=MODEL,
@@ -144,6 +154,131 @@ def summarize_player(
     except Exception as e:
         logger.error(f"LLM summarization failed for {player_name}: {e}")
         return _fallback_summary(player_name, injury_record)
+
+
+def summarize_matchup(
+    league_name: str,
+    scoring_format: str,
+    week: int,
+    season: int,
+    my_projected_total: float,
+    opp_projected_total: float,
+    opp_name: str,
+    my_starters: list[dict],
+    opp_starters: list[dict],
+    start_sit_alerts: list[str],
+    my_sleeper_total: float | None = None,
+    force_refresh: bool = False,
+) -> str | None:
+    """
+    Generate or retrieve a cached AI narrative for a fantasy matchup.
+    Cached in news_summaries table using '__matchup__{league_name}' as player_name.
+    Returns None on failure.
+    """
+    init_db()
+    cache_key = f"__matchup__{league_name}"
+
+    if not force_refresh:
+        cached = _get_cached_summary(cache_key, week, season)
+        if cached:
+            logger.debug(f"  Using cached matchup summary for {league_name}")
+            return cached
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        logger.warning("ANTHROPIC_API_KEY not set — skipping matchup summary")
+        return None
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        prompt = _build_matchup_prompt(
+            league_name, scoring_format, week, season,
+            my_projected_total, opp_projected_total, opp_name,
+            my_starters, opp_starters, start_sit_alerts, my_sleeper_total,
+        )
+        message = client.messages.create(
+            model=MODEL,
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        summary_text = message.content[0].text.strip()
+        logger.info(f"  Matchup summary generated for {league_name} (~{message.usage.input_tokens + message.usage.output_tokens} tokens)")
+        _save_summary(cache_key, week, season, None, summary_text)
+        return summary_text
+
+    except Exception as e:
+        logger.error(f"Matchup summarization failed for {league_name}: {e}")
+        return None
+
+
+def _build_matchup_prompt(
+    league_name: str,
+    scoring_format: str,
+    week: int,
+    season: int,
+    my_projected_total: float,
+    opp_projected_total: float,
+    opp_name: str,
+    my_starters: list[dict],
+    opp_starters: list[dict],
+    start_sit_alerts: list[str],
+    my_sleeper_total: float | None,
+) -> str:
+    lines = [
+        f"Fantasy Football Matchup Preview",
+        f"League: {league_name} ({scoring_format})",
+        f"Week {week}, {season} season",
+        f"",
+        f"Projected Score: You {my_projected_total:.1f} vs {opp_name} {opp_projected_total:.1f}",
+    ]
+    if my_sleeper_total is not None:
+        lines.append(f"Sleeper Projection: You {my_sleeper_total:.1f}")
+
+    def _fmt_player(p: dict) -> str:
+        name = p.get("name", "?")
+        pos = p.get("position", "?")
+        team = p.get("team", "?")
+        proj = p.get("predicted")
+        floor_ = p.get("floor")
+        ceil_ = p.get("ceiling")
+        inj = p.get("injury_status")
+        bye = p.get("on_bye", False)
+        if bye:
+            return f"  - {name} ({pos}/{team}): BYE WEEK — will not play"
+        proj_str = f"{proj:.1f}" if proj is not None else "—"
+        range_str = f" (floor {floor_:.1f}–ceil {ceil_:.1f})" if floor_ and ceil_ else ""
+        inj_str = f" [{inj}]" if inj else ""
+        summary = p.get("llm_summary") or ""
+        first_sentence = summary.split(".")[0].strip() + "." if summary else ""
+        detail = f"  - {name} ({pos}/{team}): {proj_str} pts{range_str}{inj_str}"
+        if first_sentence:
+            detail += f"\n    Note: {first_sentence}"
+        return detail
+
+    lines += ["", "My Starters:"]
+    for p in my_starters[:9]:
+        lines.append(_fmt_player(p))
+
+    lines += ["", f"{opp_name}'s Starters:"]
+    for p in opp_starters[:9]:
+        lines.append(_fmt_player(p))
+
+    if start_sit_alerts:
+        lines += ["", "Start/Sit Alerts:"]
+        for alert in start_sit_alerts:
+            lines.append(f"  {alert}")
+
+    lines += [
+        "",
+        "Task: Write 3-4 sentences previewing this fantasy matchup. Cover: "
+        "(1) overall projected margin and outlook, "
+        "(2) 1-2 key players on each side driving the projections, "
+        "(3) any injury risks or uncertainty, "
+        "(4) who you expect to win and why. "
+        "Be direct, confident, and actionable. No headers — just the summary text.",
+    ]
+    return "\n".join(lines)
 
 
 def _fallback_summary(player_name: str, injury_record: dict | None) -> str:

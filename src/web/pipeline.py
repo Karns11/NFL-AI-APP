@@ -41,6 +41,7 @@ def _serialize_card(card) -> dict:
         "home_away": card.home_away,
         "start_sit_alert": None,       # filled in below
         "actual_points": None,         # filled in for past weeks
+        "on_bye": getattr(card, "on_bye", False),
     }
 
 
@@ -82,13 +83,17 @@ def run_pipeline(
 
     # Preserve existing LLM summaries across no-LLM refreshes of the current week
     prior_summaries: dict[str, str] = {}
-    if not use_llm and not is_past:
-        prior = report_cache.get(username, resolved_week, season)
-        if prior:
-            for prior_league in prior.leagues:
-                for p in prior_league.get("my_roster", []):
-                    if p.get("llm_summary") and p.get("name"):
-                        prior_summaries[p["name"].lower()] = p["llm_summary"]
+    prior_matchup_summaries: dict[str, str] = {}
+    prior = report_cache.get(username, resolved_week, season) if not use_llm and not is_past else None
+    if prior:
+        for prior_league in prior.leagues:
+            for p in prior_league.get("my_roster", []):
+                if p.get("llm_summary") and p.get("name"):
+                    prior_summaries[p["name"].lower()] = p["llm_summary"]
+            lname = prior_league.get("league_name")
+            ms = prior_league.get("matchup_summary")
+            if lname and ms:
+                prior_matchup_summaries[lname] = ms
 
     for league in leagues:
         report, starter_cards, bench_cards, opp_cards = build_full_league_report(
@@ -186,6 +191,26 @@ def run_pipeline(
 
         opp_name = getattr(report, "_opp_name", "Opponent")
 
+        # Generate per-matchup AI narrative
+        matchup_summary = None
+        if use_llm:
+            from src.llm.summarize import summarize_matchup
+            matchup_summary = summarize_matchup(
+                league_name=report.league_name,
+                scoring_format=report.scoring_format,
+                week=resolved_week,
+                season=season,
+                my_projected_total=report.my_projected_total,
+                opp_projected_total=report.opp_projected_total,
+                opp_name=opp_name,
+                my_starters=[c for c in all_my_cards if c["is_starter"]],
+                opp_starters=[c for c in opp_serialized if c["is_starter"]],
+                start_sit_alerts=report.start_sit_alerts,
+                my_sleeper_total=my_sleeper_total if my_sleeper_total_valid else None,
+            )
+        else:
+            matchup_summary = prior_matchup_summaries.get(report.league_name)
+
         serialized_leagues.append({
             "league_name": report.league_name,
             "league_id": report.league_id,
@@ -200,6 +225,7 @@ def run_pipeline(
             "opp_actual_total": round(opp_actual_total, 1) if opp_actual_total_valid else None,
             "opp_name": opp_name,
             "start_sit_alerts": report.start_sit_alerts,
+            "matchup_summary": matchup_summary,
             "my_roster": all_my_cards,
             "opp_starters": opp_serialized,
         })

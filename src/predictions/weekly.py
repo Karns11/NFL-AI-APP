@@ -47,6 +47,8 @@ class FullPlayerCard:
     # Matchup context
     opponent: str | None = None
     home_away: str | None = None
+    # Schedule
+    on_bye: bool = False
 
 
 def _project_full(
@@ -120,6 +122,9 @@ def build_full_league_report(
     opp_owner_id = opp_roster.get("owner_id", "")
     opp_name = user_display.get(opp_owner_id, f"Roster {opp_roster_id}")
 
+    from src.predictions.predict import get_teams_on_bye
+    bye_teams = get_teams_on_bye(schedules_df, week, season)
+
     report = LeagueReport(
         league_name=league["name"],
         league_id=league["league_id"],
@@ -139,10 +144,14 @@ def build_full_league_report(
         name = info.get("name", "")
         position = info.get("position", "")
         team = info.get("team", "")
+        on_bye = team in bye_teams
 
-        predicted, floor, ceiling, shap_pos, shap_neg = _project_full(
-            info, week, season, feature_df, schedules_df, bundle_cache
-        )
+        if on_bye:
+            predicted, floor, ceiling, shap_pos, shap_neg = None, None, None, [], []
+        else:
+            predicted, floor, ceiling, shap_pos, shap_neg = _project_full(
+                info, week, season, feature_df, schedules_df, bundle_cache
+            )
 
         # Injury
         injury = get_player_injury(name, week, season)
@@ -153,11 +162,9 @@ def build_full_league_report(
         llm_summary = None
         if use_llm and position in MODEL_POSITIONS and name:
             news_items = get_player_news(name, max_items=4)
-            # Fetch teammate injuries to give LLM context about role elevation/reduction
             teammate_injuries = None
             if team:
                 all_team_injuries = get_team_injuries(team, week, season, exclude_name=name)
-                # Only pass players with an actual injury designation, not blank rows
                 teammate_injuries = [t for t in all_team_injuries if t.get("status")] or None
             llm_summary = summarize_player(
                 player_name=name, week=week, season=season,
@@ -165,6 +172,7 @@ def build_full_league_report(
                 injury_record=injury,
                 news_items=news_items,
                 teammate_injuries=teammate_injuries,
+                on_bye=on_bye,
             )
 
         card = FullPlayerCard(
@@ -173,7 +181,7 @@ def build_full_league_report(
             predicted=predicted, floor=floor, ceiling=ceiling,
             shap_positive=shap_pos, shap_negative=shap_neg,
             injury_status=injury_status, injury_type=injury_type,
-            llm_summary=llm_summary,
+            llm_summary=llm_summary, on_bye=on_bye,
         )
         starter_cards.append(card)
 
@@ -192,10 +200,14 @@ def build_full_league_report(
         name = info.get("name", "")
         position = info.get("position", "")
         team = info.get("team", "")
+        on_bye = team in bye_teams
 
-        predicted, floor, ceiling, _, _ = _project_full(
-            info, week, season, feature_df, schedules_df, bundle_cache
-        )
+        if on_bye:
+            predicted, floor, ceiling = None, None, None
+        else:
+            predicted, floor, ceiling, _, _ = _project_full(
+                info, week, season, feature_df, schedules_df, bundle_cache
+            )
 
         injury = get_player_injury(name, week, season)
         injury_status = injury.get("status") if injury else info.get("injury_status")
@@ -213,13 +225,14 @@ def build_full_league_report(
                 injury_record=injury,
                 news_items=news_items,
                 teammate_injuries=teammate_injuries,
+                on_bye=on_bye,
             )
 
         card = FullPlayerCard(
             sleeper_id=sid, name=name, position=position, team=team,
             is_starter=False,
             predicted=predicted, floor=floor, ceiling=ceiling,
-            injury_status=injury_status, llm_summary=llm_summary,
+            injury_status=injury_status, llm_summary=llm_summary, on_bye=on_bye,
         )
         bench_cards.append(card)
 
@@ -235,10 +248,14 @@ def build_full_league_report(
         name = info.get("name", "")
         position = info.get("position", "")
         team = info.get("team", "")
+        on_bye = team in bye_teams
 
-        predicted, floor, ceiling, _, _ = _project_full(
-            info, week, season, feature_df, schedules_df, bundle_cache
-        )
+        if on_bye:
+            predicted, floor, ceiling = None, None, None
+        else:
+            predicted, floor, ceiling, _, _ = _project_full(
+                info, week, season, feature_df, schedules_df, bundle_cache
+            )
 
         injury = get_player_injury(name, week, season)
         injury_status = injury.get("status") if injury else info.get("injury_status")
@@ -247,7 +264,7 @@ def build_full_league_report(
             sleeper_id=sid, name=name, position=position, team=team,
             is_starter=True,
             predicted=predicted, floor=floor, ceiling=ceiling,
-            injury_status=injury_status,
+            injury_status=injury_status, on_bye=on_bye,
         )
         opp_cards.append(card)
 

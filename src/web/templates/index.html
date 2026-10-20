@@ -210,6 +210,21 @@
     .sb-acc-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-3); }
     .sb-acc-val { font-variant-numeric: tabular-nums; font-weight: 600; }
 
+    /* ── Matchup AI narrative ────────────────── */
+    .matchup-summary {
+      margin: 14px 0 0;
+      padding: 12px 14px;
+      background: var(--surface-2);
+      border-radius: 8px;
+      border-left: 2px solid var(--accent);
+    }
+    .matchup-summary p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-2);
+      margin: 0;
+    }
+
     /* ── Side-by-side columns ────────────────── */
     .matchup-cols { display: flex; align-items: flex-start; }
     .roster-col { flex: 1; min-width: 0; }
@@ -254,6 +269,12 @@
       max-width: 140px;
     }
     .ai-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; opacity: 0.6; }
+    .bye-tag {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+      padding: 1px 4px; border-radius: 3px;
+      background: rgba(142,142,147,.15); color: var(--text-3);
+      flex-shrink: 0;
+    }
     .p-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
 
 .shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
@@ -418,6 +439,7 @@
     <div class="p-identity">
       <div class="p-name-row">
         <span class="pname">{{ p.name }}</span>
+        {% if p.get('on_bye') %}<span class="bye-tag">BYE</span>{% endif %}
         {% if p.llm_summary %}<span class="ai-dot" title="AI insight — tap to read"></span>{% endif %}
         {% if has_shap %}
           <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>
@@ -607,6 +629,13 @@
       {% endif %}
 
     </div>
+
+    {# ── Matchup AI narrative ────────────────── #}
+    {% if league.get('matchup_summary') %}
+    <div class="matchup-summary">
+      <p>{{ league.matchup_summary }}</p>
+    </div>
+    {% endif %}
 
     {# ── Side-by-side roster columns ────────── #}
     <div class="matchup-cols">

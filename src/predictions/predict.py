@@ -77,6 +77,27 @@ def get_current_week(season: int | None = None) -> int:
         return 1
 
 
+def get_teams_on_bye(schedules_df, week: int, season: int) -> set[str]:
+    """
+    Return the set of NFL team abbreviations that have no game in the given week.
+    Uses the schedules DataFrame (from build_feature_df).
+    """
+    import polars as pl
+    week_games = schedules_df.filter(
+        (pl.col("season") == season) &
+        (pl.col("week") == week) &
+        (pl.col("game_type") == "REG")
+    )
+    playing = set(week_games["away_team"].to_list()) | set(week_games["home_team"].to_list())
+    all_teams = {
+        "ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE",
+        "DAL", "DEN", "DET", "GB",  "HOU", "IND", "JAX", "KC",
+        "LA",  "LAC", "LV",  "MIA", "MIN", "NE",  "NO",  "NYG",
+        "NYJ", "PHI", "PIT", "SEA", "SF",  "TB",  "TEN", "WAS",
+    }
+    return all_teams - playing
+
+
 def load_phase2_bundle(position: str):
     """Load the frozen Phase 2 model bundle."""
     path = MODELS_DIR / f"{position.lower()}_bundle_p2.joblib"
