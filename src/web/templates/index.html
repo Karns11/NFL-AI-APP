@@ -334,14 +334,16 @@
 
     /* summary panel */
     .summary-panel { max-height: 0; overflow: hidden; transition: max-height 0.22s ease; }
-    .summary-panel.open { max-height: 240px; }
+    .summary-panel.open { max-height: 160px; }
     .summary-inner {
-      padding: 9px 14px 12px 28px;
-      font-size: 12px;
+      padding: 8px 14px 10px 28px;
+      font-size: 11.5px;
       color: var(--text-2);
-      line-height: 1.7;
+      line-height: 1.6;
       border-top: 1px solid var(--border-faint);
       background: var(--bg);
+      max-height: 160px;
+      overflow-y: auto;
     }
 
     /* ── Empty / not-generated states ───────── */
