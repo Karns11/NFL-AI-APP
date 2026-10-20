@@ -125,6 +125,7 @@ def build_full_league_report(
     schedules_df: pl.DataFrame,
     bundle_cache: dict,
     use_llm: bool = True,
+    force_refresh_llm: bool = False,
 ) -> tuple[LeagueReport, list[FullPlayerCard], list[FullPlayerCard], list[FullPlayerCard]]:
     """
     Build full cards for my starters, lighter cards for bench + opponent.
@@ -200,6 +201,7 @@ def build_full_league_report(
                 ceiling=ceiling,
                 shap_positive=shap_pos,
                 shap_negative=shap_neg,
+                force_refresh=force_refresh_llm,
             )
 
         card = FullPlayerCard(
@@ -256,6 +258,7 @@ def build_full_league_report(
                 predicted=predicted,
                 floor=floor,
                 ceiling=ceiling,
+                force_refresh=force_refresh_llm,
             )
 
         card = FullPlayerCard(

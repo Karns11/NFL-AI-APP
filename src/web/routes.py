@@ -304,6 +304,23 @@ def refresh_full():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@bp.route("/api/refresh-full-force", methods=["POST"])
+@login_required
+def refresh_full_force():
+    """Refresh + regenerate all AI summaries, bypassing the cache."""
+    sleeper_username = current_user.sleeper_username
+    if not sleeper_username:
+        return jsonify({"status": "error", "message": "No Sleeper username set"}), 400
+    try:
+        from src.web.pipeline import run_pipeline
+        current_week = get_current_week(_CURRENT_SEASON)
+        run_pipeline(username=sleeper_username, week=current_week, use_llm=True, force_refresh_llm=True)
+        return jsonify({"status": "ok", "message": "AI summaries regenerated"})
+    except Exception as e:
+        logger.error(f"Force AI refresh failed for {sleeper_username}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @bp.route("/api/generate-week", methods=["POST"])
 @login_required
 def generate_week():

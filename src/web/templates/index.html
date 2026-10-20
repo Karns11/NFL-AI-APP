@@ -509,6 +509,9 @@
       <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
         Refresh + AI <span class="spinner" id="spin-ai"></span>
       </button>
+      <button class="btn btn-secondary" id="btn-refresh-force" onclick="doRefreshForce()">
+        Regenerate AI <span class="spinner" id="spin-force"></span>
+      </button>
       {% endif %}
     {% else %}
       <span class="nav-sep"></span>
@@ -753,6 +756,30 @@ function doRefresh(withAI) {
       if (btnR)  btnR.disabled  = false;
       if (btnAI) btnAI.disabled = false;
       if (spin)  spin.style.display = 'none';
+    });
+}
+
+function doRefreshForce() {
+  const btn  = document.getElementById('btn-refresh-force');
+  const spin = document.getElementById('spin-force');
+
+  if (btn)  btn.disabled = true;
+  if (spin) spin.style.display = 'inline-block';
+
+  fetch('/api/refresh-full-force', { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'ok') {
+        showToast('AI summaries regenerated', 'ok');
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showToast('Error: ' + d.message, 'err');
+      }
+    })
+    .catch(() => showToast('Request failed', 'err'))
+    .finally(() => {
+      if (btn)  btn.disabled = false;
+      if (spin) spin.style.display = 'none';
     });
 }
 </script>

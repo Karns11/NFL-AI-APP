@@ -51,6 +51,7 @@ def run_pipeline(
     season: int = _CURRENT_SEASON,
     use_llm: bool = True,
     refresh_injuries: bool = False,
+    force_refresh_llm: bool = False,
 ) -> None:
     """
     Run the full weekly report pipeline and store results in report_cache.
@@ -104,6 +105,7 @@ def run_pipeline(
             schedules_df=schedules_df,
             bundle_cache=bundle_cache,
             use_llm=use_llm,
+            force_refresh_llm=force_refresh_llm,
         )
 
         scoring_settings = league.get("scoring_settings", {})
@@ -208,6 +210,7 @@ def run_pipeline(
                 opp_starters=[c for c in opp_serialized if c["is_starter"]],
                 start_sit_alerts=report.start_sit_alerts,
                 my_sleeper_total=my_sleeper_total if my_sleeper_total_valid else None,
+                force_refresh=force_refresh_llm,
             )
         else:
             matchup_summary = prior_matchup_summaries.get(report.league_name)
