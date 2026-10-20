@@ -30,6 +30,14 @@ PLAYER_MAX_TOKENS  = 300   # 3-4 rich sentences
 MATCHUP_MAX_TOKENS = 500   # 5-6 paragraph-quality sentences
 
 
+def _extract_text(message) -> str:
+    """Extract text content from an API response, skipping any ThinkingBlocks."""
+    for block in message.content:
+        if hasattr(block, "text"):
+            return block.text.strip()
+    raise ValueError("No text block found in response")
+
+
 def _build_prompt(
     player_name: str,
     week: int,
@@ -195,7 +203,7 @@ def summarize_player(
             messages=[{"role": "user", "content": prompt}],
         )
 
-        summary_text = message.content[0].text.strip()
+        summary_text = _extract_text(message)
         logger.info(f"  LLM summary generated for {player_name} (~{message.usage.input_tokens + message.usage.output_tokens} tokens)")
 
         _save_summary(player_name, week, season, injury_record, summary_text)
@@ -252,7 +260,7 @@ def summarize_matchup(
             max_tokens=MATCHUP_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
-        summary_text = message.content[0].text.strip()
+        summary_text = _extract_text(message)
         logger.info(f"  Matchup summary generated for {league_name} (~{message.usage.input_tokens + message.usage.output_tokens} tokens)")
         _save_summary(cache_key, week, season, None, summary_text)
         return summary_text
