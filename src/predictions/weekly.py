@@ -90,14 +90,16 @@ def _project_full(
         raw_floor     = pred["floor"]
         raw_ceiling   = pred["ceiling"]
 
-        # Blend toward the higher of season avg or 4-game rolling avg.
-        # Using max() handles emerging players (Bernard-type): their roll4 reflects
-        # a new role even when their season avg is diluted by inactive weeks.
+        # Blend toward the higher of season avg or 4-game rolling avg,
+        # but ONLY when the anchor is below the raw prediction (dampening outliers).
+        # If anchor >= raw, the model is already conservative — don't suppress further.
+        # This prevents emerging players (Bernard-type) from being pulled down by a
+        # near-zero season avg built entirely from inactive weeks.
         BLEND = 0.60  # 60% model, 40% anchor
         season_avg = features.get("season_avg_fp") or 0
         roll4 = features.get("fp_roll4_mean") or 0
         anchor = max(season_avg, roll4)
-        if anchor > 0:
+        if anchor > 0 and anchor < raw_predicted and raw_predicted > 8:
             blended = BLEND * raw_predicted + (1 - BLEND) * anchor
             delta = blended - raw_predicted
             predicted = blended
