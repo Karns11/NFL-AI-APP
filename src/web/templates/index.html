@@ -253,6 +253,7 @@
     .player-item:last-child { border-bottom: none; }
     .player-item:hover { background: var(--surface-hi); }
     .player-item.has-summary { cursor: pointer; }
+    .player-item.no-proj { padding-top: 7px; padding-bottom: 7px; }
 
     .s-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
     .s-dot-ph { width: 6px; flex-shrink: 0; }
@@ -428,7 +429,8 @@
     {% set act_class = "actual-neu" %}
   {% endif %}
 
-  <div class="player-item {{ 'has-summary' if p.llm_summary else '' }}"
+  {% set no_proj = (p.predicted is none and p.actual_points is none) %}
+  <div class="player-item {{ 'has-summary' if p.llm_summary else '' }} {{ 'no-proj' if no_proj else '' }}"
        {% if p.llm_summary %}onclick="toggleSummary(this)"{% endif %}>
     {% if show_starter and p.is_starter %}
       <span class="s-dot" title="In your lineup"></span>
@@ -448,6 +450,7 @@
       <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
     </div>
 
+    {% if not no_proj %}
     <div class="proj-block">
       {% if p.predicted is not none %}
         <div class="proj-num">{{ "%.1f"|format(p.predicted) }}</div>
@@ -460,14 +463,11 @@
           </div>
         {% endif %}
       {% else %}
-        {% if p.actual_points is not none %}
-          <div class="proj-num empty">—</div>
-          <div class="actual-pts actual-neu">{{ "%.1f"|format(p.actual_points) }}</div>
-        {% else %}
-          <div class="proj-num empty">—</div>
-        {% endif %}
+        <div class="proj-num empty">—</div>
+        <div class="actual-pts actual-neu">{{ "%.1f"|format(p.actual_points) }}</div>
       {% endif %}
     </div>
+    {% endif %}
   </div>
 
   {% if p.llm_summary %}

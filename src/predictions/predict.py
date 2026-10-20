@@ -52,7 +52,11 @@ DEFAULT_SEASONS = list(range(2016, _CURRENT_SEASON + 1))
 def get_current_week(season: int | None = None) -> int:
     """
     Detect the current NFL week based on today's date and the schedule.
-    Returns the week whose games include or are closest after today.
+
+    Logic: find the week whose games are currently in progress or upcoming.
+    - Thu–Mon: the week with games happening now
+    - Tue–Wed (after 5 AM ET): advance to the NEXT week, since all games
+      from the prior week are complete by Tuesday morning
     Falls back to week 1 if no schedule data is available.
     """
     if season is None:
@@ -60,19 +64,38 @@ def get_current_week(season: int | None = None) -> int:
     try:
         import nflreadpy as nfl
         import polars as pl
-        today_str = _dt.date.today().isoformat()
+        from datetime import timezone, timedelta
+
+        # Get today's date in ET (UTC-4 or UTC-5; use UTC-5 conservatively)
+        now_et = _dt.datetime.now(timezone(timedelta(hours=-5)))
+        today = now_et.date()
+        today_str = today.isoformat()
+        weekday = today.weekday()  # 0=Mon, 1=Tue, 2=Wed
+
         sched = nfl.load_schedules([season])
         week_dates = (
             sched.filter(pl.col("game_type") == "REG")
             .group_by("week")
-            .agg(pl.col("gameday").min().alias("first_game"))
+            .agg(
+                pl.col("gameday").min().alias("first_game"),
+                pl.col("gameday").max().alias("last_game"),
+            )
             .sort("week")
         )
-        # Current week = last week whose first game is on or before today
+
+        # Week whose first game is on or before today
         past = week_dates.filter(pl.col("first_game") <= today_str)
         if len(past) == 0:
             return 1
-        return past["week"].max()
+        last_started_week = int(past["week"].max())
+
+        # Tue (1) or Wed (2): all games from last_started_week are done — move to next week
+        if weekday in (1, 2):
+            next_week = last_started_week + 1
+            max_week = int(week_dates["week"].max())
+            return min(next_week, max_week)
+
+        return last_started_week
     except Exception:
         return 1
 
