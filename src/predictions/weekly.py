@@ -173,6 +173,11 @@ def build_full_league_report(
                 news_items=news_items,
                 teammate_injuries=teammate_injuries,
                 on_bye=on_bye,
+                predicted=predicted,
+                floor=floor,
+                ceiling=ceiling,
+                shap_positive=shap_pos,
+                shap_negative=shap_neg,
             )
 
         card = FullPlayerCard(
@@ -226,6 +231,9 @@ def build_full_league_report(
                 news_items=news_items,
                 teammate_injuries=teammate_injuries,
                 on_bye=on_bye,
+                predicted=predicted,
+                floor=floor,
+                ceiling=ceiling,
             )
 
         card = FullPlayerCard(

@@ -1,12 +1,10 @@
 """
-Claude Haiku integration for player injury + news summarization.
+Claude integration for player and matchup AI summarization.
 
-Produces 2-3 sentence plain-English summaries combining:
-  - Official injury designation (O/P/Q/D/IR)
-  - Recent practice reports (DNP/Limited/Full)
-  - Recent news headlines and snippets
+Player summaries: Claude Haiku 5.5 (fast, cheap, high-volume)
+Matchup summaries: Claude Sonnet 5.5 (premium reasoning, 1 call/league/week)
 
-Cost estimate: ~500 tokens/player × 50 players = 25K tokens ≈ $0.01/week
+Cost estimate: ~$0.033/week for 2 leagues + ~30 players
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """
@@ -25,8 +23,11 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 
 logger = logging.getLogger(__name__)
 
-MODEL = "claude-haiku-4-5-20251001"
-MAX_TOKENS = 200  # 2-3 sentence summary
+PLAYER_MODEL  = "claude-haiku-5-5"    # High-volume per-player summaries
+MATCHUP_MODEL = "claude-sonnet-5-5"   # One per league per week, premium quality
+
+PLAYER_MAX_TOKENS  = 300   # 3-4 rich sentences
+MATCHUP_MAX_TOKENS = 500   # 5-6 paragraph-quality sentences
 
 
 def _build_prompt(
@@ -39,8 +40,13 @@ def _build_prompt(
     news_items: list[dict],
     teammate_injuries: list[dict] | None = None,
     on_bye: bool = False,
+    predicted: float | None = None,
+    floor: float | None = None,
+    ceiling: float | None = None,
+    shap_positive: list | None = None,
+    shap_negative: list | None = None,
 ) -> str:
-    """Build the prompt for Haiku summarization."""
+    """Build the prompt for player summarization."""
     lines = [
         f"Player: {player_name}",
         f"Week: {week} of the {season} NFL season",
@@ -81,6 +87,34 @@ def _build_prompt(
                 detail += f" — {t_injury}"
             lines.append(detail)
 
+    if predicted is not None:
+        lines.append(f"\nModel Projection:")
+        lines.append(f"  Expected points: {predicted:.1f}")
+        if floor is not None and ceiling is not None:
+            lines.append(f"  Range: Floor {floor:.1f} · Ceiling {ceiling:.1f}")
+        if shap_positive:
+            lines.append(f"  Key factors boosting projection:")
+            for feat, val in (shap_positive or [])[:3]:
+                feat_label = (feat
+                    .replace("snap_pct_roll3", "Snap%")
+                    .replace("snap_pct_ewm", "Snap%")
+                    .replace("team_implied_total", "Game Total")
+                    .replace("spread_line", "Spread")
+                    .replace("opp_fp_allowed_roll4", "Opp DEF")
+                    .replace("_", " "))
+                lines.append(f"    ▲ {feat_label}: +{val:.1f}")
+        if shap_negative:
+            lines.append(f"  Key factors suppressing projection:")
+            for feat, val in (shap_negative or [])[:2]:
+                feat_label = (feat
+                    .replace("snap_pct_roll3", "Snap%")
+                    .replace("snap_pct_ewm", "Snap%")
+                    .replace("team_implied_total", "Game Total")
+                    .replace("spread_line", "Spread")
+                    .replace("opp_fp_allowed_roll4", "Opp DEF")
+                    .replace("_", " "))
+                lines.append(f"    ▼ {feat_label}: -{abs(val):.1f}")
+
     if news_items:
         lines.append("\nRecent News:")
         for item in news_items[:4]:
@@ -92,10 +126,18 @@ def _build_prompt(
         lines.append("\nRecent News: No recent news found")
 
     lines.append(
-        "\nTask: Write a 2-3 sentence fantasy football injury and news summary for this player. "
-        "Focus on: (1) current availability/status, (2) any injury concern and expected impact on production, "
-        "(3) any relevant teammate injuries that elevate or reduce this player's role this week. "
-        "Be concise, direct, and actionable. Do NOT include player/team/position headers — just the summary text."
+        "\nTask: Write a concise premium fantasy football analysis of this player for the upcoming week "
+        "using the available news, injury information, model projection, floor/ceiling range, and model drivers. "
+        "Explain what the information means for the player's expected fantasy performance rather than simply repeating it. "
+        "Identify the most important factors influencing his projection, including any meaningful positive or negative "
+        "model drivers, changes in availability or role, matchup considerations, and relevant teammate situations. "
+        "Distinguish between information that increases confidence in the projection and information that creates "
+        "uncertainty or downside. "
+        "Give the reader a clear bottom-line expectation for the player this week: what should a fantasy manager "
+        "realistically expect, what could cause him to outperform or underperform, and how much confidence should "
+        "they have in the projection. "
+        "Use specific numbers and player names when useful. Be analytical and opinionated, but do not invent "
+        "information or make generic fantasy-football statements. Do NOT include headers — just the summary text."
     )
 
     return "\n".join(lines)
@@ -111,16 +153,19 @@ def summarize_player(
     news_items: list[dict] | None = None,
     teammate_injuries: list[dict] | None = None,
     on_bye: bool = False,
+    predicted: float | None = None,
+    floor: float | None = None,
+    ceiling: float | None = None,
+    shap_positive: list | None = None,
+    shap_negative: list | None = None,
     force_refresh: bool = False,
 ) -> str:
     """
     Generate or retrieve a cached LLM summary for a player.
-
     Returns the summary text. Caches result in news_summaries table.
     """
     init_db()
 
-    # Check cache first
     if not force_refresh:
         cached = _get_cached_summary(player_name, week, season)
         if cached:
@@ -136,18 +181,23 @@ def summarize_player(
         import anthropic
         client = anthropic.Anthropic(api_key=api_key)
 
-        prompt = _build_prompt(player_name, week, season, position, team, injury_record, news_items or [], teammate_injuries, on_bye=on_bye)
+        prompt = _build_prompt(
+            player_name, week, season, position, team,
+            injury_record, news_items or [], teammate_injuries,
+            on_bye=on_bye,
+            predicted=predicted, floor=floor, ceiling=ceiling,
+            shap_positive=shap_positive, shap_negative=shap_negative,
+        )
 
         message = client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
+            model=PLAYER_MODEL,
+            max_tokens=PLAYER_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
 
         summary_text = message.content[0].text.strip()
         logger.info(f"  LLM summary generated for {player_name} (~{message.usage.input_tokens + message.usage.output_tokens} tokens)")
 
-        # Cache the result
         _save_summary(player_name, week, season, injury_record, summary_text)
         return summary_text
 
@@ -198,8 +248,8 @@ def summarize_matchup(
             my_starters, opp_starters, start_sit_alerts, my_sleeper_total,
         )
         message = client.messages.create(
-            model=MODEL,
-            max_tokens=300,
+            model=MATCHUP_MODEL,
+            max_tokens=MATCHUP_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
         summary_text = message.content[0].text.strip()
@@ -226,14 +276,15 @@ def _build_matchup_prompt(
     my_sleeper_total: float | None,
 ) -> str:
     lines = [
-        f"Fantasy Football Matchup Preview",
+        f"Fantasy Football Matchup Analysis",
         f"League: {league_name} ({scoring_format})",
         f"Week {week}, {season} season",
         f"",
-        f"Projected Score: You {my_projected_total:.1f} vs {opp_name} {opp_projected_total:.1f}",
+        f"Projected Score: You {my_projected_total:.1f} vs {opp_name} {opp_projected_total:.1f} "
+        f"(margin: {my_projected_total - opp_projected_total:+.1f})",
     ]
     if my_sleeper_total is not None:
-        lines.append(f"Sleeper Projection: You {my_sleeper_total:.1f}")
+        lines.append(f"Sleeper Projection: You {my_sleeper_total:.1f} (vs model {my_projected_total:.1f})")
 
     def _fmt_player(p: dict) -> str:
         name = p.get("name", "?")
@@ -249,34 +300,51 @@ def _build_matchup_prompt(
         proj_str = f"{proj:.1f}" if proj is not None else "—"
         range_str = f" (floor {floor_:.1f}–ceil {ceil_:.1f})" if floor_ and ceil_ else ""
         inj_str = f" [{inj}]" if inj else ""
+        # Flag high-variance players
+        variance_flag = ""
+        if floor_ and ceil_ and (ceil_ - floor_) > 10:
+            variance_flag = " ⚡high-variance"
         summary = p.get("llm_summary") or ""
-        first_sentence = summary.split(".")[0].strip() + "." if summary else ""
-        detail = f"  - {name} ({pos}/{team}): {proj_str} pts{range_str}{inj_str}"
-        if first_sentence:
-            detail += f"\n    Note: {first_sentence}"
+        detail = f"  - {name} ({pos}/{team}): {proj_str} pts{range_str}{inj_str}{variance_flag}"
+        if summary:
+            detail += f"\n    Analysis: {summary}"
         return detail
 
     lines += ["", "My Starters:"]
-    for p in my_starters[:9]:
+    for p in my_starters[:12]:
         lines.append(_fmt_player(p))
 
     lines += ["", f"{opp_name}'s Starters:"]
-    for p in opp_starters[:9]:
+    for p in opp_starters[:12]:
         lines.append(_fmt_player(p))
 
     if start_sit_alerts:
-        lines += ["", "Start/Sit Alerts:"]
+        lines += ["", "Start/Sit Alerts (bench players outprojecting starters):"]
         for alert in start_sit_alerts:
             lines.append(f"  {alert}")
 
     lines += [
         "",
-        "Task: Write 3-4 sentences previewing this fantasy matchup. Cover: "
-        "(1) overall projected margin and outlook, "
-        "(2) 1-2 key players on each side driving the projections, "
-        "(3) any injury risks or uncertainty, "
-        "(4) who you expect to win and why. "
-        "Be direct, confident, and actionable. No headers — just the summary text.",
+        "Task: Write a premium fantasy football matchup analysis based on all of the roster, projection, "
+        "player-summary, matchup, injury, and variance information provided. "
+        "Your job is to interpret the data and tell the story of how this matchup is likely to play out — "
+        "not simply restate the numbers. "
+        "Explain why the model favors one team, identify the 2–3 players or situations that are most likely "
+        "to determine the outcome, and highlight any meaningful advantages or vulnerabilities on either roster. "
+        "Pay particular attention to players whose projections, floor/ceiling ranges, injuries, usage, or matchup "
+        "conditions create meaningful leverage or could cause the result to deviate from the projection. "
+        "Discuss the most important opponent threats and explain what would have to happen for the projected "
+        "outcome to change. "
+        "Incorporate relevant player-level insights, but prioritize the information that actually matters to "
+        "this matchup. "
+        "If there is a meaningful start/sit or bench decision, call it out clearly and explain why. "
+        "End with a confident prediction of the winner and the primary reason you believe they will win. "
+        "Use specific player names and relevant numbers throughout. "
+        "Be analytical, opinionated, and concise. Do not mechanically address every piece of available data, "
+        "and do not make generic fantasy-football statements. "
+        "Focus on the few insights that would actually help a fantasy manager make a better decision. "
+        "Do not restate information already visible in the individual player summaries — synthesize and elevate. "
+        "No headers — just the analysis text.",
     ]
     return "\n".join(lines)
 
