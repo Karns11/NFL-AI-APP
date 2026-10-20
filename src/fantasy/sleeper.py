@@ -199,6 +199,30 @@ def _scoring_key(scoring_format: str) -> str:
     return "pts_std"
 
 
+def _compute_player_projected_score(
+    stats: dict,
+    scoring_settings: dict,
+) -> float | None:
+    """
+    Compute a player's projected score using the league's actual scoring settings.
+    More accurate than pts_ppr, which uses generic 4-pt passing TDs regardless of
+    league settings (many leagues use 6-pt passing TDs, causing a ~3+ pt gap per QB).
+    Returns None if stats is empty.
+    """
+    if not stats:
+        return None
+    total = 0.0
+    found = False
+    for stat_key, multiplier in scoring_settings.items():
+        if multiplier == 0:
+            continue
+        val = stats.get(stat_key)
+        if val:
+            total += float(val) * multiplier
+            found = True
+    return total if found else None
+
+
 def get_player_actual_scores(league_id: str, week: int) -> dict[str, float]:
     """
     Returns {sleeper_player_id: points_scored} for a completed week.

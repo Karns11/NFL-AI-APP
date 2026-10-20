@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from src.news.db import init_db, get_all_users
 from src.news.injury_scraper import run_scrape
 from src.news.rss_fetcher import fetch_all_feeds
-from src.fantasy.sleeper import get_my_league_data, get_player_actual_scores, get_player_projected_scores, get_my_matchup, _scoring_key
+from src.fantasy.sleeper import get_my_league_data, get_player_actual_scores, get_player_projected_scores, get_my_matchup, _scoring_key, _compute_player_projected_score
 from src.predictions.predict import build_feature_df, _CURRENT_SEASON, get_current_week
 from src.predictions.weekly import build_full_league_report
 from src.web import report_cache
@@ -106,7 +106,7 @@ def run_pipeline(
             use_llm=use_llm,
         )
 
-        scoring_key = _scoring_key(league.get("_scoring_format", "PPR"))
+        scoring_settings = league.get("scoring_settings", {})
 
         # Fetch actual scores for past weeks
         actual_scores: dict[str, float] = {}
@@ -120,9 +120,10 @@ def run_pipeline(
         def _sum_sleeper(starter_ids: list[str]) -> tuple[float, bool]:
             total, valid = 0.0, False
             for sid in starter_ids:
-                val = (sleeper_projs.get(str(sid), {}) or {}).get(scoring_key)
+                player_stats = sleeper_projs.get(str(sid))
+                val = _compute_player_projected_score(player_stats, scoring_settings)
                 if val is not None:
-                    total += float(val)
+                    total += val
                     valid = True
             return total, valid
 
