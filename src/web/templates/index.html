@@ -676,7 +676,7 @@
       <div class="col-rule"></div>
 
       <div class="roster-col">
-        <div class="col-header opp">{{ league.opp_name }}</div>
+        <div class="col-header opp">{{ league.opp_name }} <span style="font-size:9px;font-weight:400;opacity:0.45;text-transform:none;letter-spacing:0;">(starters only)</span></div>
         {% if league.opp_starters %}
           {% for pos in POS_ORDER %}
             {% for p in league.opp_starters if p.position == pos %}
