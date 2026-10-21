@@ -13,7 +13,7 @@ from src.web import report_cache
 from src.news.db import (
     init_db, create_user, get_user_by_email,
     update_sleeper_username, get_all_users,
-    get_ai_usage_today, increment_ai_usage,
+    get_ai_usage_today, get_ai_usage_today_by_sleeper, increment_ai_usage,
 )
 from src.predictions.predict import get_current_week, _CURRENT_SEASON
 
@@ -261,7 +261,7 @@ def index():
 
     freshness = get_data_freshness(week, season)
     accuracy = _compute_accuracy(sleeper_username, season, current_week)
-    ai_uses_today = get_ai_usage_today(current_user.id)
+    ai_uses_today = max(get_ai_usage_today(current_user.id), get_ai_usage_today_by_sleeper(sleeper_username))
     ai_uses_remaining = max(0, DAILY_AI_LIMIT - ai_uses_today)
     return render_template(
         "index.html",
@@ -301,10 +301,10 @@ def refresh_full():
     sleeper_username = current_user.sleeper_username
     if not sleeper_username:
         return jsonify({"status": "error", "message": "No Sleeper username set"}), 400
-    used = get_ai_usage_today(current_user.id)
+    used = max(get_ai_usage_today(current_user.id), get_ai_usage_today_by_sleeper(sleeper_username))
     if used >= DAILY_AI_LIMIT:
         return jsonify({"status": "limit", "message": f"You've used your {DAILY_AI_LIMIT} AI generation for today. Resets at midnight ET."}), 429
-    increment_ai_usage(current_user.id)
+    increment_ai_usage(current_user.id, sleeper_username)
     try:
         from src.web.pipeline import run_pipeline
         current_week = get_current_week(_CURRENT_SEASON)
@@ -322,10 +322,10 @@ def refresh_full_force():
     sleeper_username = current_user.sleeper_username
     if not sleeper_username:
         return jsonify({"status": "error", "message": "No Sleeper username set"}), 400
-    used = get_ai_usage_today(current_user.id)
+    used = max(get_ai_usage_today(current_user.id), get_ai_usage_today_by_sleeper(sleeper_username))
     if used >= DAILY_AI_LIMIT:
         return jsonify({"status": "limit", "message": f"You've used your {DAILY_AI_LIMIT} AI generation for today. Resets at midnight ET."}), 429
-    increment_ai_usage(current_user.id)
+    increment_ai_usage(current_user.id, sleeper_username)
     try:
         from src.web.pipeline import run_pipeline
         current_week = get_current_week(_CURRENT_SEASON)

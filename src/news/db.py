@@ -76,6 +76,13 @@ def init_db() -> None:
                 generation_count INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(user_id, used_on)
             );
+
+            CREATE TABLE IF NOT EXISTS ai_usage_by_sleeper (
+                sleeper_username TEXT NOT NULL,
+                used_on          TEXT NOT NULL,
+                generation_count INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(sleeper_username, used_on)
+            );
         """)
 
 
@@ -136,8 +143,19 @@ def get_ai_usage_today(user_id: int) -> int:
     return row["generation_count"] if row else 0
 
 
-def increment_ai_usage(user_id: int) -> int:
-    """Increment today's AI generation count for this user. Returns new count."""
+def get_ai_usage_today_by_sleeper(sleeper_username: str) -> int:
+    """Return the number of AI generations used today (ET) for a Sleeper username across all accounts."""
+    today = _today_et()
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT generation_count FROM ai_usage_by_sleeper WHERE sleeper_username = ? AND used_on = ?",
+            (sleeper_username.lower().strip(), today),
+        ).fetchone()
+    return row["generation_count"] if row else 0
+
+
+def increment_ai_usage(user_id: int, sleeper_username: str) -> int:
+    """Increment today's AI generation count for both this user and their Sleeper username."""
     today = _today_et()
     with get_conn() as conn:
         conn.execute(
@@ -148,6 +166,15 @@ def increment_ai_usage(user_id: int) -> int:
                 generation_count = generation_count + 1
             """,
             (user_id, today),
+        )
+        conn.execute(
+            """
+            INSERT INTO ai_usage_by_sleeper (sleeper_username, used_on, generation_count)
+            VALUES (?, ?, 1)
+            ON CONFLICT(sleeper_username, used_on) DO UPDATE SET
+                generation_count = generation_count + 1
+            """,
+            (sleeper_username.lower().strip(), today),
         )
         row = conn.execute(
             "SELECT generation_count FROM ai_usage WHERE user_id = ? AND used_on = ?",
