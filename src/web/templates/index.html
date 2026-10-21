@@ -459,7 +459,7 @@
           <span class="shap-arrow {{ 'shap-up' if net_up else 'shap-down' }}" title="{{ tip.text }}">{{ '▲' if net_up else '▼' }}</span>
         {% endif %}
       </div>
-      <div class="p-meta">{{ p.position }} · {{ p.team }}</div>
+      <div class="p-meta">{{ p.position }} · {{ p.team }}{% if p.opponent and not p.get('on_bye') %} · <span style="opacity:0.65">{{ p.home_away }} {{ p.opponent }}</span>{% endif %}</div>
     </div>
 
     {% if not no_proj %}

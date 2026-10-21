@@ -292,6 +292,35 @@ def get_player_features(
     return features, position, team
 
 
+def get_opp_def_stats(
+    opponent: str,
+    position: str,
+    week: int,
+    season: int,
+    feature_df,
+) -> float | None:
+    """
+    Return the most recent opp_fp_allowed_pos_roll4 for the given opponent
+    defense vs. the given position, prior to the target week.
+    Used to pass human-readable defensive context to the LLM.
+    """
+    import polars as pl
+    if "opponent_team" not in feature_df.columns or "opp_fp_allowed_pos_roll4" not in feature_df.columns:
+        return None
+    rows = feature_df.filter(
+        (pl.col("opponent_team") == opponent) &
+        (pl.col("position") == position) &
+        (
+            (pl.col("season") < season) |
+            ((pl.col("season") == season) & (pl.col("week") < week))
+        )
+    ).sort(["season", "week"]).tail(1)
+    if len(rows) == 0:
+        return None
+    val = rows["opp_fp_allowed_pos_roll4"].to_list()[0]
+    return float(val) if val is not None else None
+
+
 def format_shap_line(name: str, value: float) -> str:
     """Format a SHAP driver line."""
     arrow = "▲" if value > 0 else "▼"

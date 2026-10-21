@@ -57,6 +57,9 @@ def _build_prompt(
     ceiling: float | None = None,
     shap_positive: list | None = None,
     shap_negative: list | None = None,
+    opponent: str | None = None,
+    home_away: str | None = None,
+    opp_fp_allowed: float | None = None,
 ) -> str:
     """Build the prompt for player summarization."""
     lines = [
@@ -67,6 +70,12 @@ def _build_prompt(
         lines.append(f"Position: {position}")
     if team:
         lines.append(f"Team: {team}")
+    if opponent and home_away:
+        matchup_line = f"Matchup: {home_away} {opponent}"
+        if opp_fp_allowed is not None:
+            pos_label = f"{position}s" if position else "players at this position"
+            matchup_line += f" ({opponent} has allowed {opp_fp_allowed:.1f} PPG to {pos_label} over their last 4 games)"
+        lines.append(matchup_line)
 
     if on_bye:
         lines.append(f"\nSchedule: {team} has a BYE WEEK this week — {player_name} will NOT play.")
@@ -182,6 +191,9 @@ def summarize_player(
     ceiling: float | None = None,
     shap_positive: list | None = None,
     shap_negative: list | None = None,
+    opponent: str | None = None,
+    home_away: str | None = None,
+    opp_fp_allowed: float | None = None,
     force_refresh: bool = False,
 ) -> str:
     """
@@ -211,6 +223,7 @@ def summarize_player(
             on_bye=on_bye,
             predicted=predicted, floor=floor, ceiling=ceiling,
             shap_positive=shap_positive, shap_negative=shap_negative,
+            opponent=opponent, home_away=home_away, opp_fp_allowed=opp_fp_allowed,
         )
 
         message = client.messages.create(

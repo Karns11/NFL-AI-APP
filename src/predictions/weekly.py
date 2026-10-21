@@ -145,8 +145,22 @@ def build_full_league_report(
     opp_owner_id = opp_roster.get("owner_id", "")
     opp_name = user_display.get(opp_owner_id, f"Roster {opp_roster_id}")
 
-    from src.predictions.predict import get_teams_on_bye
+    from src.predictions.predict import get_teams_on_bye, get_opp_def_stats
     bye_teams = get_teams_on_bye(schedules_df, week, season)
+
+    def _get_opponent(team: str):
+        """Return (opponent_abbr, home_away_str) for this team in the target week."""
+        sched = schedules_df.filter(
+            (pl.col("season") == season) &
+            (pl.col("week") == week) &
+            ((pl.col("home_team") == team) | (pl.col("away_team") == team))
+        )
+        if len(sched) == 0:
+            return None, None
+        s = sched.row(0, named=True)
+        is_home = s["home_team"] == team
+        opp = s["away_team"] if is_home else s["home_team"]
+        return opp, ("vs." if is_home else "@")
 
     report = LeagueReport(
         league_name=league["name"],
@@ -168,6 +182,7 @@ def build_full_league_report(
         position = info.get("position", "")
         team = info.get("team", "")
         on_bye = team in bye_teams
+        opp_team, home_away = (None, None) if on_bye else _get_opponent(team)
 
         if on_bye:
             predicted, floor, ceiling, shap_pos, shap_neg = None, None, None, [], []
@@ -189,6 +204,7 @@ def build_full_league_report(
             if team:
                 all_team_injuries = get_team_injuries(team, week, season, exclude_name=name)
                 teammate_injuries = [t for t in all_team_injuries if t.get("status")] or None
+            opp_fp_allowed = get_opp_def_stats(opp_team, position, week, season, feature_df) if opp_team else None
             llm_summary = summarize_player(
                 player_name=name, week=week, season=season,
                 position=position, team=team,
@@ -201,6 +217,9 @@ def build_full_league_report(
                 ceiling=ceiling,
                 shap_positive=shap_pos,
                 shap_negative=shap_neg,
+                opponent=opp_team,
+                home_away=home_away,
+                opp_fp_allowed=opp_fp_allowed,
                 force_refresh=force_refresh_llm,
             )
 
@@ -211,6 +230,7 @@ def build_full_league_report(
             shap_positive=shap_pos, shap_negative=shap_neg,
             injury_status=injury_status, injury_type=injury_type,
             llm_summary=llm_summary, on_bye=on_bye,
+            opponent=opp_team, home_away=home_away,
         )
         starter_cards.append(card)
 
@@ -230,6 +250,7 @@ def build_full_league_report(
         position = info.get("position", "")
         team = info.get("team", "")
         on_bye = team in bye_teams
+        opp_team, home_away = (None, None) if on_bye else _get_opponent(team)
 
         if on_bye:
             predicted, floor, ceiling = None, None, None
@@ -248,6 +269,7 @@ def build_full_league_report(
             if team:
                 all_team_injuries = get_team_injuries(team, week, season, exclude_name=name)
                 teammate_injuries = [t for t in all_team_injuries if t.get("status")] or None
+            opp_fp_allowed = get_opp_def_stats(opp_team, position, week, season, feature_df) if opp_team else None
             llm_summary = summarize_player(
                 player_name=name, week=week, season=season,
                 position=position, team=team,
@@ -258,6 +280,9 @@ def build_full_league_report(
                 predicted=predicted,
                 floor=floor,
                 ceiling=ceiling,
+                opponent=opp_team,
+                home_away=home_away,
+                opp_fp_allowed=opp_fp_allowed,
                 force_refresh=force_refresh_llm,
             )
 
@@ -266,6 +291,7 @@ def build_full_league_report(
             is_starter=False,
             predicted=predicted, floor=floor, ceiling=ceiling,
             injury_status=injury_status, llm_summary=llm_summary, on_bye=on_bye,
+            opponent=opp_team, home_away=home_away,
         )
         bench_cards.append(card)
 
@@ -282,6 +308,7 @@ def build_full_league_report(
         position = info.get("position", "")
         team = info.get("team", "")
         on_bye = team in bye_teams
+        opp_team, home_away = (None, None) if on_bye else _get_opponent(team)
 
         if on_bye:
             predicted, floor, ceiling = None, None, None
@@ -298,6 +325,7 @@ def build_full_league_report(
             is_starter=True,
             predicted=predicted, floor=floor, ceiling=ceiling,
             injury_status=injury_status, on_bye=on_bye,
+            opponent=opp_team, home_away=home_away,
         )
         opp_cards.append(card)
 
