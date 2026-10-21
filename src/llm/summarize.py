@@ -32,9 +32,13 @@ MATCHUP_MAX_TOKENS = 500   # 5-6 paragraph-quality sentences
 
 def _extract_text(message) -> str:
     """Extract text content from an API response, skipping any ThinkingBlocks."""
+    import re
     for block in message.content:
         if hasattr(block, "text"):
-            return block.text.strip()
+            text = block.text.strip()
+            # Strip any markdown headers the LLM sneaks in (e.g. "# Title\n\n")
+            text = re.sub(r"^#{1,6}\s+[^\n]*\n+", "", text).strip()
+            return text
     raise ValueError("No text block found in response")
 
 
