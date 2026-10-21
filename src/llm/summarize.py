@@ -153,7 +153,11 @@ def _build_prompt(
             "realistically expect, what could cause him to outperform or underperform, and how much confidence should "
             "they have in the projection. "
             "Use specific numbers and player names when useful. Be analytical and opinionated, but do not invent "
-            "information or make generic fantasy-football statements. Do NOT include headers — just the summary text."
+            "information or make generic fantasy-football statements. "
+            "IMPORTANT: Only reference teammates, offensive schemes, or roster situations that are explicitly mentioned "
+            "in the injury or news data provided above. Do NOT rely on your training data knowledge of historical rosters — "
+            "rosters change every season and your knowledge may be outdated. If no teammate context is provided, do not speculate about it. "
+            "Do NOT include headers — just the summary text."
         )
 
     return "\n".join(lines)
