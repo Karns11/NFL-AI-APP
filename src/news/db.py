@@ -68,6 +68,14 @@ def init_db() -> None:
                 sleeper_username TEXT,
                 display_name     TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS ai_usage (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id          INTEGER NOT NULL,
+                used_on          TEXT NOT NULL,
+                generation_count INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(user_id, used_on)
+            );
         """)
 
 
@@ -106,3 +114,43 @@ def update_sleeper_username(user_id: int, sleeper_username: str) -> None:
 def get_all_users() -> list:
     with get_conn() as conn:
         return conn.execute("SELECT * FROM users").fetchall()
+
+
+# ── AI usage helpers ──────────────────────────────────────────────────────────
+
+def _today_et() -> str:
+    """Return today's date string in ET (UTC-5) as YYYY-MM-DD."""
+    from datetime import timedelta
+    now_et = datetime.now(timezone.utc) - timedelta(hours=5)
+    return now_et.date().isoformat()
+
+
+def get_ai_usage_today(user_id: int) -> int:
+    """Return the number of AI generations used today (ET) for this user."""
+    today = _today_et()
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT generation_count FROM ai_usage WHERE user_id = ? AND used_on = ?",
+            (user_id, today),
+        ).fetchone()
+    return row["generation_count"] if row else 0
+
+
+def increment_ai_usage(user_id: int) -> int:
+    """Increment today's AI generation count for this user. Returns new count."""
+    today = _today_et()
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO ai_usage (user_id, used_on, generation_count)
+            VALUES (?, ?, 1)
+            ON CONFLICT(user_id, used_on) DO UPDATE SET
+                generation_count = generation_count + 1
+            """,
+            (user_id, today),
+        )
+        row = conn.execute(
+            "SELECT generation_count FROM ai_usage WHERE user_id = ? AND used_on = ?",
+            (user_id, today),
+        ).fetchone()
+    return row["generation_count"] if row else 1

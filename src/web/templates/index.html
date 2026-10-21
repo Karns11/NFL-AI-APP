@@ -282,6 +282,9 @@
       background: rgba(142,142,147,.10); color: var(--text-3);
       flex-shrink: 0;
     }
+    .ai-limit-note {
+      font-size: 10px; color: var(--text-3); margin-left: 4px; white-space: nowrap;
+    }
     .p-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
 
 .shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
@@ -504,16 +507,22 @@
     <a href="{{ url_for('main.logout') }}" class="nav-link">Sign out</a>
     {% if not is_past and not is_future %}
       {% if cached %}
+      {% set ai_blocked = (ai_uses_remaining == 0) %}
       <span class="nav-sep"></span>
       <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
         Refresh <span class="spinner" id="spin-refresh"></span>
       </button>
-      <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)">
+      <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)"
+              {% if ai_blocked %}disabled title="AI limit reached for today — resets midnight ET"{% endif %}>
         Refresh + AI <span class="spinner" id="spin-ai"></span>
       </button>
-      <button class="btn btn-secondary" id="btn-refresh-force" onclick="doRefreshForce()">
+      <button class="btn btn-secondary" id="btn-refresh-force" onclick="doRefreshForce()"
+              {% if ai_blocked %}disabled title="AI limit reached for today — resets midnight ET"{% endif %}>
         Regenerate AI <span class="spinner" id="spin-force"></span>
       </button>
+      <span class="ai-limit-note">
+        {% if ai_uses_remaining > 0 %}{{ ai_uses_remaining }} AI generation remaining today{% else %}AI limit reached · resets midnight ET{% endif %}
+      </span>
       {% endif %}
     {% else %}
       <span class="nav-sep"></span>
@@ -749,6 +758,8 @@ function doRefresh(withAI) {
       if (d.status === 'ok') {
         showToast('Report updated', 'ok');
         setTimeout(() => location.reload(), 800);
+      } else if (d.status === 'limit') {
+        showToast(d.message, 'err');
       } else {
         showToast('Error: ' + d.message, 'err');
       }
@@ -774,6 +785,8 @@ function doRefreshForce() {
       if (d.status === 'ok') {
         showToast('AI summaries regenerated', 'ok');
         setTimeout(() => location.reload(), 800);
+      } else if (d.status === 'limit') {
+        showToast(d.message, 'err');
       } else {
         showToast('Error: ' + d.message, 'err');
       }
