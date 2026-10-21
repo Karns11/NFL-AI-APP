@@ -19,7 +19,7 @@ from src.predictions.predict import get_current_week, _CURRENT_SEASON
 
 logger = logging.getLogger(__name__)
 
-DAILY_AI_LIMIT = 1  # AI generations per user per calendar day (ET)
+DAILY_AI_LIMIT = 10  # TODO: revert to 1 before deploying to production!
 
 bp = Blueprint("main", __name__)
 
