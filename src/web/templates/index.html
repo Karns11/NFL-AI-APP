@@ -499,8 +499,10 @@
 {# ── Page ───────────────────────────────────────── #}
 
 <nav class="nav">
-  <span class="nav-brand">LineupIQ</span>
+  <a href="{{ url_for('main.index') }}" class="nav-brand" style="text-decoration:none;color:inherit">LineupIQ</a>
   <div class="nav-right">
+    <a href="{{ url_for('main.stats') }}" class="nav-link">Stats</a>
+    <span class="nav-sep"></span>
     <span class="nav-user">{{ current_user.display_name }}</span>
     <span class="nav-sep"></span>
     <a href="{{ url_for('main.settings') }}" class="nav-link">Settings</a>

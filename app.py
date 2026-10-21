@@ -83,6 +83,8 @@ def _scheduled_tuesday_stats():
     log.info(f"Tuesday stats refresh: pulling {_CURRENT_SEASON} data...")
     counts = refresh_current_season(_CURRENT_SEASON)
     log.info(f"  Stats refreshed: {counts}")
+    from src.stats import cache as stats_cache
+    stats_cache.invalidate_all()
     run_pipeline_for_all_users(use_llm=False)
     log.info("Tuesday stats refresh complete.")
 

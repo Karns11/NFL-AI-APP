@@ -277,6 +277,43 @@ def index():
     )
 
 
+# ── Stats page ───────────────────────────────────────────────────────────────
+
+@bp.route("/stats")
+@login_required
+def stats():
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    return render_template("stats.html", season=season, current_week=current_week)
+
+
+@bp.route("/api/stats/defense")
+@login_required
+def api_stats_defense():
+    from src.stats.defense import get_dvp_table
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+
+    position = request.args.get("position", "WR").upper()
+    try:
+        week    = int(request.args.get("week", current_week))
+        recent_n = int(request.args.get("recent_n", 4))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid parameters"}), 400
+
+    week = max(1, min(week, 18))
+    recent_n = max(1, min(recent_n, 16))
+
+    try:
+        data = get_dvp_table(position, season, week, recent_n)
+        return jsonify({"status": "ok", "data": data})
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception as e:
+        logger.error(f"DvP query failed: {e}")
+        return jsonify({"status": "error", "message": "Query failed"}), 500
+
+
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 @bp.route("/api/refresh", methods=["POST"])

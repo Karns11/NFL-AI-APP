@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LineupIQ — Stats</title>
+  <style>
+    :root {
+      --bg:           #0a0a0f;
+      --surface:      #111118;
+      --surface-hi:   #18181f;
+      --border:       #22222e;
+      --border-faint: #191921;
+      --text-1:       #f0f0f5;
+      --text-2:       #636370;
+      --text-3:       #3a3a46;
+      --accent:       #4f8ef7;
+      --green:        #34c759;
+      --red:          #ff3b30;
+      --amber:        #ff9500;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ───────────────────────────────────────── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: 0.1px; text-decoration: none; }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .nav-user  { font-size: 13px; color: var(--text-2); }
+    .nav-sep   { width: 1px; height: 16px; background: var(--border); }
+    .nav-link  { font-size: 13px; color: var(--text-2); text-decoration: none; }
+    .nav-link:hover { color: var(--text-1); }
+    .nav-link.active { color: var(--accent); }
+
+    /* ── Page layout ───────────────────────────────── */
+    .container { max-width: 1080px; margin: 0 auto; padding: 28px 20px; }
+
+    h1 { font-size: 18px; font-weight: 600; color: var(--text-1); margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: var(--text-2); margin-bottom: 24px; }
+
+    /* ── Tab bar ───────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 0.15s;
+    }
+    .tab-btn:hover { color: var(--text-1); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Controls row ──────────────────────────────── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .ctrl-label { font-size: 12px; color: var(--text-2); }
+    select, .seg-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-1);
+      font-size: 13px;
+      padding: 5px 10px;
+      cursor: pointer;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent); }
+    .seg-group { display: flex; gap: 0; }
+    .seg-btn {
+      border-radius: 0;
+      border-right-width: 0;
+      transition: background 0.1s, color 0.1s;
+    }
+    .seg-btn:first-child { border-radius: 6px 0 0 6px; }
+    .seg-btn:last-child  { border-radius: 0 6px 6px 0; border-right-width: 1px; }
+    .seg-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── DvP table ─────────────────────────────────── */
+    .dvp-table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    thead th:hover { color: var(--text-2); }
+    thead th.sorted-asc::after  { content: " ↑"; color: var(--accent); }
+    thead th.sorted-desc::after { content: " ↓"; color: var(--accent); }
+    tbody tr {
+      border-bottom: 1px solid var(--border-faint);
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: var(--surface-hi); }
+    td { padding: 9px 12px; white-space: nowrap; }
+    .td-rank { font-size: 11px; color: var(--text-3); width: 36px; }
+    .td-team {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      min-width: 90px;
+    }
+    .team-logo {
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+    .team-logo-placeholder {
+      width: 22px;
+      height: 22px;
+      background: var(--border);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .td-num { text-align: right; font-variant-numeric: tabular-nums; }
+    .td-split { text-align: right; font-size: 12px; color: var(--text-2); }
+    .td-games { text-align: right; font-size: 11px; color: var(--text-3); }
+
+    /* Heat colour applied inline via JS */
+    .heat-cell { border-radius: 4px; padding: 3px 8px; }
+
+    /* ── Trend sparkline ───────────────────────────── */
+    .spark-wrap { display: flex; align-items: center; gap: 4px; }
+    .spark-val { font-size: 12px; }
+    .trend-up   { color: var(--red); }    /* more FP allowed = bad for fantasy managers */
+    .trend-down { color: var(--green); }  /* fewer FP allowed = tough matchup */
+    .trend-flat { color: var(--text-3); }
+
+    /* ── Empty state ───────────────────────────────── */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--text-2);
+      font-size: 14px;
+    }
+    .empty-state h3 { color: var(--text-1); font-size: 16px; margin-bottom: 8px; }
+
+    /* ── Loading spinner ───────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 11px; height: 11px;
+      border: 1.5px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      opacity: 0.5;
+      vertical-align: middle;
+      margin-left: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-row td { text-align: center; padding: 40px; color: var(--text-2); }
+
+    /* ── Phase placeholder ─────────────────────────── */
+    .phase-placeholder {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-2);
+    }
+    .phase-placeholder h3 { color: var(--text-1); font-size: 15px; margin-bottom: 8px; }
+    .phase-placeholder p  { font-size: 13px; }
+
+    /* ── Toast ─────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 9px 15px; border-radius: 9px;
+      font-size: 13px; font-weight: 500;
+      opacity: 0; transition: opacity 0.22s;
+      pointer-events: none; z-index: 100;
+    }
+    #toast.show { opacity: 1; }
+    #toast.ok  { background: rgba(52,199,89,.18);  color: var(--green); border: 1px solid rgba(52,199,89,.25); }
+    #toast.err { background: rgba(255,59,48,.18);  color: var(--red);   border: 1px solid rgba(255,59,48,.25); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="{{ url_for('main.index') }}" class="nav-brand">LineupIQ</a>
+  <div class="nav-right">
+    <a href="{{ url_for('main.index') }}"  class="nav-link">Dashboard</a>
+    <a href="{{ url_for('main.stats') }}"  class="nav-link active">Stats</a>
+    <span class="nav-sep"></span>
+    <span class="nav-user">{{ current_user.display_name }}</span>
+    <span class="nav-sep"></span>
+    <a href="{{ url_for('main.settings') }}" class="nav-link">Settings</a>
+    <a href="{{ url_for('main.logout') }}"   class="nav-link">Sign out</a>
+  </div>
+</nav>
+
+<div class="container">
+  <h1>Stats &amp; Insights</h1>
+  <p class="page-sub">League-wide data to inform matchup and start/sit decisions — updated weekly.</p>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('dvp', this)">Defense vs. Position</button>
+    <button class="tab-btn"        onclick="switchTab('leaderboard', this)">Leaderboards <span style="font-size:10px;opacity:.45;margin-left:3px">Phase 2</span></button>
+    <button class="tab-btn"        onclick="switchTab('charts', this)">Quadrant Charts <span style="font-size:10px;opacity:.45;margin-left:3px">Phase 3</span></button>
+    <button class="tab-btn"        onclick="switchTab('trends', this)">Trends <span style="font-size:10px;opacity:.45;margin-left:3px">Phase 4</span></button>
+  </div>
+
+  <!-- ── Tab: Defense vs. Position ───────────────────────────────────────── -->
+  <div id="tab-dvp">
+
+    <div class="controls">
+      <span class="ctrl-label">Position</span>
+      <div class="seg-group">
+        <button class="seg-btn active" onclick="setPosition('WR', this)">WR</button>
+        <button class="seg-btn"        onclick="setPosition('RB', this)">RB</button>
+        <button class="seg-btn"        onclick="setPosition('QB', this)">QB</button>
+        <button class="seg-btn"        onclick="setPosition('TE', this)">TE</button>
+      </div>
+      <span class="ctrl-label" style="margin-left:8px">Week range</span>
+      <select id="dvp-week-select" onchange="loadDvp()">
+        {% for w in range(current_week, 0, -1) %}
+        <option value="{{ w }}" {% if w == current_week %}selected{% endif %}>
+          Through Wk {{ w }}{% if w == current_week %} (current){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <span class="ctrl-label" style="margin-left:8px">Recent window</span>
+      <select id="dvp-recent-select" onchange="loadDvp()">
+        <option value="3">Last 3 games</option>
+        <option value="4" selected>Last 4 games</option>
+        <option value="6">Last 6 games</option>
+        <option value="8">Last 8 games</option>
+      </select>
+    </div>
+
+    <div class="dvp-table-wrap">
+      <table id="dvp-table">
+        <thead>
+          <tr>
+            <th class="td-rank" data-col="rank" onclick="sortTable(this)">Rk</th>
+            <th data-col="team" onclick="sortTable(this)">Team</th>
+            <th class="td-num" data-col="fp_per_game" onclick="sortTable(this)">FP/G (season)</th>
+            <th class="td-num" data-col="recent_fp_per_game" onclick="sortTable(this)">FP/G (recent)</th>
+            <th class="td-split" data-col="home_fp_per_game" onclick="sortTable(this)">Home</th>
+            <th class="td-split" data-col="away_fp_per_game" onclick="sortTable(this)">Away</th>
+            <th class="td-games" data-col="games" onclick="sortTable(this)">Games</th>
+          </tr>
+        </thead>
+        <tbody id="dvp-tbody">
+          <tr class="loading-row"><td colspan="7">Loading<span class="spinner"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin-top:10px">
+      Rank 1 = most FP allowed (easiest matchup) · Rank 32 = fewest FP allowed (toughest).
+      Heat colour: <span style="color:var(--red)">■</span> generous &nbsp;→&nbsp; <span style="color:var(--green)">■</span> stingy.
+      PPR scoring.
+    </p>
+  </div>
+
+  <!-- ── Tab: Leaderboards (Phase 2 placeholder) ─────────────────────────── -->
+  <div id="tab-leaderboard" style="display:none">
+    <div class="phase-placeholder">
+      <h3>Leaderboards — Coming in Phase 2</h3>
+      <p>Per-position season and recent-week leaderboards with usage metrics (snap%, target share, carries).</p>
+    </div>
+  </div>
+
+  <!-- ── Tab: Quadrant Charts (Phase 3 placeholder) ──────────────────────── -->
+  <div id="tab-charts" style="display:none">
+    <div class="phase-placeholder">
+      <h3>Quadrant Charts — Coming in Phase 3</h3>
+      <p>Interactive X/Y charts — WR volume vs. efficiency, RB opportunity vs. efficiency, defense pass vs. rush allowed, and more.</p>
+    </div>
+  </div>
+
+  <!-- ── Tab: Trends (Phase 4 placeholder) ───────────────────────────────── -->
+  <div id="tab-trends" style="display:none">
+    <div class="phase-placeholder">
+      <h3>Trends — Coming in Phase 4</h3>
+      <p>Weekly FP trend lines for players and defenses, plus recent game scores.</p>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let currentPosition = 'WR';
+  let sortCol = 'rank';
+  let sortDir = 'asc';
+  let dvpData = [];
+
+  // ── Tab switching ──────────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['dvp','leaderboard','charts','trends'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
+    });
+    if (name === 'dvp' && dvpData.length === 0) loadDvp();
+  }
+
+  // ── Position selector ─────────────────────────────────────────────────────
+  function setPosition(pos, btn) {
+    currentPosition = pos;
+    document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadDvp();
+  }
+
+  // ── Load DvP data from API ─────────────────────────────────────────────────
+  function loadDvp() {
+    const week   = document.getElementById('dvp-week-select').value;
+    const recent = document.getElementById('dvp-recent-select').value;
+    const tbody  = document.getElementById('dvp-tbody');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="7">Loading<span class="spinner"></span></td></tr>';
+
+    fetch(`/api/stats/defense?position=${currentPosition}&week=${week}&recent_n=${recent}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.status !== 'ok') { showToast('Error: ' + d.message, 'err'); return; }
+        dvpData = d.data;
+        sortCol = 'rank';
+        sortDir = 'asc';
+        renderDvpTable();
+        updateSortHeaders();
+      })
+      .catch(() => showToast('Failed to load data', 'err'));
+  }
+
+  // ── Render DvP table ───────────────────────────────────────────────────────
+  function renderDvpTable() {
+    const tbody = document.getElementById('dvp-tbody');
+    if (!dvpData.length) {
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="7">No data available for this selection.</td></tr>';
+      return;
+    }
+
+    // Compute min/max for heat colouring
+    const vals = dvpData.map(r => r.fp_per_game).filter(v => v != null);
+    const minV = Math.min(...vals), maxV = Math.max(...vals);
+
+    tbody.innerHTML = dvpData.map(row => {
+      const heatBg = heatColour(row.fp_per_game, minV, maxV);
+      const recent = row.recent_fp_per_game != null ? row.recent_fp_per_game.toFixed(1) : '—';
+      const home   = row.home_fp_per_game   != null ? row.home_fp_per_game.toFixed(1)   : '—';
+      const away   = row.away_fp_per_game   != null ? row.away_fp_per_game.toFixed(1)   : '—';
+
+      // Trend arrow comparing recent vs season
+      let trendHtml = '';
+      if (row.recent_fp_per_game != null && row.fp_per_game != null) {
+        const diff = row.recent_fp_per_game - row.fp_per_game;
+        if (Math.abs(diff) >= 1.5) {
+          trendHtml = diff > 0
+            ? `<span class="trend-up" title="Getting more generous recently">↑</span>`
+            : `<span class="trend-down" title="Getting tougher recently">↓</span>`;
+        }
+      }
+
+      const logoHtml = `<img class="team-logo" src="${row.logo_url}" alt="${row.team}"
+                             onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                        <span class="team-logo-placeholder" style="display:none"></span>`;
+
+      return `<tr>
+        <td class="td-rank">${row.rank}</td>
+        <td><div class="td-team">${logoHtml}<span>${row.team}</span></div></td>
+        <td class="td-num"><span class="heat-cell" style="background:${heatBg}">${row.fp_per_game.toFixed(1)}</span></td>
+        <td class="td-num">${recent} ${trendHtml}</td>
+        <td class="td-split">${home}</td>
+        <td class="td-split">${away}</td>
+        <td class="td-games">${row.games}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── Heat colour: red (high/easy) → neutral → green (low/tough) ────────────
+  function heatColour(val, min, max) {
+    if (val == null || max === min) return 'transparent';
+    const t = (val - min) / (max - min); // 0=min(tough), 1=max(easy)
+    // Interpolate: green(52,199,89) → transparent(mid) → red(255,59,48)
+    if (t >= 0.5) {
+      const u = (t - 0.5) * 2;
+      const r = Math.round(255 * u), g = Math.round(59 + (199-59)*(1-u)), b = Math.round(48 + (89-48)*(1-u));
+      return `rgba(${r},${g},${b},${0.12 + 0.13*u})`;
+    } else {
+      const u = (0.5 - t) * 2;
+      const r = Math.round(52 + (255-52)*(1-u)), g = Math.round(199 + (59-199)*(1-u)), b = Math.round(89 + (48-89)*(1-u));
+      return `rgba(${r},${g},${b},${0.12 + 0.13*u})`;
+    }
+  }
+
+  // ── Column sort ────────────────────────────────────────────────────────────
+  function sortTable(th) {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = col;
+      sortDir = col === 'rank' ? 'asc' : 'desc';
+    }
+    dvpData.sort((a, b) => {
+      const va = a[col] ?? (sortDir === 'asc' ? Infinity : -Infinity);
+      const vb = b[col] ?? (sortDir === 'asc' ? Infinity : -Infinity);
+      if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortDir === 'asc' ? va - vb : vb - va;
+    });
+    renderDvpTable();
+    updateSortHeaders();
+  }
+
+  function updateSortHeaders() {
+    document.querySelectorAll('thead th').forEach(th => {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+      if (th.dataset.col === sortCol) {
+        th.classList.add(sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+      }
+    });
+  }
+
+  // ── Toast ──────────────────────────────────────────────────────────────────
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + type;
+    setTimeout(() => { t.className = ''; }, 3500);
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadDvp();
+</script>
+</body>
+</html>
