@@ -578,15 +578,17 @@
       <h2>No report for Week {{ week }}</h2>
       <p>Generate historical projections for this week — about 60 seconds. No AI summaries for past weeks.</p>
     {% elif is_future %}
-      <h2>No report for Week {{ week }}</h2>
-      <p>Generate a preview for this upcoming week using current player stats — about 60 seconds.</p>
+      <h2>Week {{ week }} isn't here yet</h2>
+      <p>Reports and projections for Week {{ week }} will be available once the current week's games are underway. Check back closer to kickoff.</p>
     {% else %}
       <h2>No report yet</h2>
       <p>Generate your first report — takes about 60 seconds.</p>
     {% endif %}
+    {% if not is_future %}
     <button class="btn btn-primary" id="btn-gen" onclick="doGenerateWeek({{ week }})">
       Generate Week {{ week }} Report <span class="spinner" id="spin-gen"></span>
     </button>
+    {% endif %}
   </div>
 
   {% else %}
