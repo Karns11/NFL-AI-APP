@@ -133,20 +133,28 @@ def _build_prompt(
     else:
         lines.append("\nRecent News: No recent news found")
 
-    lines.append(
-        "\nTask: Write a concise premium fantasy football analysis of this player for the upcoming week "
-        "using the available news, injury information, model projection, floor/ceiling range, and model drivers. "
-        "Explain what the information means for the player's expected fantasy performance rather than simply repeating it. "
-        "Identify the most important factors influencing his projection, including any meaningful positive or negative "
-        "model drivers, changes in availability or role, matchup considerations, and relevant teammate situations. "
-        "Distinguish between information that increases confidence in the projection and information that creates "
-        "uncertainty or downside. "
-        "Give the reader a clear bottom-line expectation for the player this week: what should a fantasy manager "
-        "realistically expect, what could cause him to outperform or underperform, and how much confidence should "
-        "they have in the projection. "
-        "Use specific numbers and player names when useful. Be analytical and opinionated, but do not invent "
-        "information or make generic fantasy-football statements. Do NOT include headers — just the summary text."
-    )
+    if predicted is None:
+        lines.append(
+            "\nTask: Write 2-3 sentences summarizing what a fantasy manager needs to know about this player "
+            "this week. Focus on their current role, availability, and any relevant news or injury context. "
+            "Do not reference projected points or model drivers — none are available for this player. "
+            "Be direct and practical. Do NOT include headers — just the summary text."
+        )
+    else:
+        lines.append(
+            "\nTask: Write a concise premium fantasy football analysis of this player for the upcoming week "
+            "using the available news, injury information, model projection, floor/ceiling range, and model drivers. "
+            "Explain what the information means for the player's expected fantasy performance rather than simply repeating it. "
+            "Identify the most important factors influencing his projection, including any meaningful positive or negative "
+            "model drivers, changes in availability or role, matchup considerations, and relevant teammate situations. "
+            "Distinguish between information that increases confidence in the projection and information that creates "
+            "uncertainty or downside. "
+            "Give the reader a clear bottom-line expectation for the player this week: what should a fantasy manager "
+            "realistically expect, what could cause him to outperform or underperform, and how much confidence should "
+            "they have in the projection. "
+            "Use specific numbers and player names when useful. Be analytical and opinionated, but do not invent "
+            "information or make generic fantasy-football statements. Do NOT include headers — just the summary text."
+        )
 
     return "\n".join(lines)
 
