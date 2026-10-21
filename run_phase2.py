@@ -65,7 +65,7 @@ def _compare_row(label: str, p1: dict, p2: dict, key: str, fmt: str = ".2f") -> 
 
 def main():
     print("\n" + "="*60)
-    print("  NFL FANTASY AI — PHASE 2")
+    print("  LINEUPIQ — PHASE 2")
     print("  Better Features + Tuning + Calibration")
     print("="*60)
 

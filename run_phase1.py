@@ -38,7 +38,7 @@ POSITIONS = ["WR", "RB", "QB", "TE"]
 
 def main():
     print("\n" + "="*60)
-    print("  NFL FANTASY AI — PHASE 1 MVP")
+    print("  LINEUPIQ — PHASE 1 MVP")
     print("="*60)
 
     # --- 1. Load data ---

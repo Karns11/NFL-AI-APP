@@ -50,7 +50,7 @@ CURRENT_SEASON = _today.year if _today.month >= 9 else _today.year - 1
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NFL Fantasy AI — Phase 4 Weekly Pipeline")
+    parser = argparse.ArgumentParser(description="LineupIQ — Phase 4 Weekly Pipeline")
     parser.add_argument("--week", "-w", type=int, default=None, help="NFL week number (default: auto-detect current week)")
     parser.add_argument("--season", "-s", type=int, default=CURRENT_SEASON, help="Season year")
     parser.add_argument(
@@ -66,7 +66,7 @@ def main():
     players = args.players or DEFAULT_PLAYERS
 
     print("\n" + "="*60)
-    print(f"  NFL FANTASY AI — PHASE 4")
+    print(f"  LINEUPIQ — PHASE 4")
     print(f"  Season {args.season}  |  Week {week}")
     print("="*60)
 

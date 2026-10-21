@@ -1,5 +1,5 @@
 """
-NFL Fantasy AI — Unified Weekly Report
+LineupIQ — Unified Weekly Report
 
 Single command that combines Phase 4 (injury/news/LLM) + Phase 5 (Sleeper).
 
@@ -46,7 +46,7 @@ DEFAULT_USERNAME = "Karns11"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NFL Fantasy AI — Unified Weekly Report")
+    parser = argparse.ArgumentParser(description="LineupIQ — Unified Weekly Report")
     parser.add_argument("--username", "-u", default=DEFAULT_USERNAME, help="Sleeper username")
     parser.add_argument("--week", "-w", type=int, default=None, help="NFL week (default: auto-detect)")
     parser.add_argument("--season", "-s", type=int, default=_CURRENT_SEASON, help=f"Season (default: {_CURRENT_SEASON})")
@@ -57,7 +57,7 @@ def main():
     week = args.week or get_current_week(args.season)
 
     print("\n" + "="*60)
-    print(f"  NFL FANTASY AI — WEEKLY REPORT")
+    print(f"  LINEUPIQ — WEEKLY REPORT")
     print(f"  {args.username}  |  Season {args.season}  |  Week {week}")
     print("="*60)
 

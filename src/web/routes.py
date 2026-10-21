@@ -1,5 +1,5 @@
 """
-Flask route handlers for the NFL Fantasy AI web app.
+Flask route handlers for the LineupIQ web app.
 """
 
 import logging

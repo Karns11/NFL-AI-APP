@@ -1,5 +1,5 @@
 """
-NFL Fantasy AI — Local Web App
+LineupIQ — Local Web App
 
 Run:
   python app.py              # starts at http://localhost:8080
@@ -127,7 +127,7 @@ def start_scheduler():
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="NFL Fantasy AI Web App")
+    parser = argparse.ArgumentParser(description="LineupIQ Web App")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--generate", action="store_true",
@@ -144,7 +144,7 @@ def main():
     scheduler = start_scheduler()
 
     url = f"http://localhost:{args.port}"
-    print(f"\n  NFL Fantasy AI running at {url}")
+    print(f"\n  LineupIQ running at {url}")
     print(f"  Scheduled: stats Tue 8am, injury refresh Wed/Thu/Fri 9am, full report Fri 6am")
     print(f"  Press Ctrl+C to stop.\n")
 

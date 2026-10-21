@@ -523,7 +523,7 @@ def predict_and_display(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="NFL Fantasy AI — Player Prediction Card"
+        description="LineupIQ — Player Prediction Card"
     )
     parser.add_argument("--player", "-p", required=True, help="Player name (e.g. 'Ja'Marr Chase')")
     parser.add_argument("--week", "-w", type=int, required=True, help="NFL week number")

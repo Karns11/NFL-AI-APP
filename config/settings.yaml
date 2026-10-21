@@ -1,7 +1,7 @@
-# NFL Fantasy AI — Settings
+# LineupIQ — Settings
 
 project:
-  name: nfl-fantasy-ai
+  name: lineup-iq
   data_dir: data
   db_dir: data/db
   raw_dir: data/raw

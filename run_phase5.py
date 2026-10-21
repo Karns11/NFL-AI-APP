@@ -33,7 +33,7 @@ DEFAULT_USERNAME = "Karns11"
 
 
 def main():
-    parser = argparse.ArgumentParser(description="NFL Fantasy AI — Phase 5 Personalized Report")
+    parser = argparse.ArgumentParser(description="LineupIQ — Phase 5 Personalized Report")
     parser.add_argument("--week", "-w", type=int, default=None, help="NFL week number (default: auto-detect current week)")
     parser.add_argument("--season", "-s", type=int, default=_CURRENT_SEASON, help=f"Season (default: {_CURRENT_SEASON})")
     parser.add_argument("--username", "-u", default=DEFAULT_USERNAME, help="Sleeper username")
@@ -41,7 +41,7 @@ def main():
     week = args.week or get_current_week(args.season)
 
     print("\n" + "="*60)
-    print(f"  NFL FANTASY AI — PHASE 5")
+    print(f"  LINEUPIQ — PHASE 5")
     print(f"  Sleeper: {args.username}  |  Season {args.season}  |  Week {week}")
     print("="*60)
 
