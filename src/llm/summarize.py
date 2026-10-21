@@ -1,10 +1,10 @@
 """
 Claude integration for player and matchup AI summarization.
 
-Player summaries: Claude Haiku 5.5 (fast, cheap, high-volume)
-Matchup summaries: Claude Sonnet 5.5 (premium reasoning, 1 call/league/week)
+Player summaries: Claude Haiku (fast, cheap, high-volume)
+Matchup summaries: Claude Haiku (1 call/league/week, lean prompt — no embedded player summaries)
 
-Cost estimate: ~$0.033/week for 2 leagues + ~30 players
+Cost estimate: ~$0.01–0.02/week for 2 leagues + ~30 players
 
 Requires ANTHROPIC_API_KEY in environment or .env file.
 """
@@ -24,7 +24,7 @@ load_dotenv(Path(__file__).parent.parent.parent / ".env")
 logger = logging.getLogger(__name__)
 
 PLAYER_MODEL  = "claude-haiku-4-5-20251001"   # High-volume per-player summaries
-MATCHUP_MODEL = "claude-sonnet-4-6"           # One per league per week, premium quality
+MATCHUP_MODEL = "claude-haiku-4-5-20251001"   # One per league per week
 
 PLAYER_MAX_TOKENS  = 300   # 3-4 rich sentences
 MATCHUP_MAX_TOKENS = 500   # 5-6 paragraph-quality sentences
@@ -320,15 +320,8 @@ def _build_matchup_prompt(
         proj_str = f"{proj:.1f}" if proj is not None else "—"
         range_str = f" (floor {floor_:.1f}–ceil {ceil_:.1f})" if floor_ and ceil_ else ""
         inj_str = f" [{inj}]" if inj else ""
-        # Flag high-variance players
-        variance_flag = ""
-        if floor_ and ceil_ and (ceil_ - floor_) > 10:
-            variance_flag = " ⚡high-variance"
-        summary = p.get("llm_summary") or ""
-        detail = f"  - {name} ({pos}/{team}): {proj_str} pts{range_str}{inj_str}{variance_flag}"
-        if summary:
-            detail += f"\n    Analysis: {summary}"
-        return detail
+        variance_flag = " [high-variance]" if floor_ and ceil_ and (ceil_ - floor_) > 10 else ""
+        return f"  - {name} ({pos}/{team}): {proj_str} pts{range_str}{inj_str}{variance_flag}"
 
     lines += ["", "My Starters:"]
     for p in my_starters[:12]:
