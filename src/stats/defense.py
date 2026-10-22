@@ -124,29 +124,33 @@ def _query_dvp(
         }
 
     # ── Recent N games ────────────────────────────────────────────────────────
+    # Aggregate to one row per (team, game) first, THEN rank by recency.
+    # The previous approach ranked individual player rows, so ROW_NUMBER ≤ N
+    # would pick the N most recent *player records*, not N most recent games.
     recent_rows = db.execute("""
-        WITH ranked AS (
+        WITH game_totals AS (
             SELECT
                 p.opponent_team AS team,
                 p.game_id,
                 p.week,
-                SUM(p.fantasy_points_ppr) OVER (PARTITION BY p.opponent_team, p.game_id) AS game_fp,
-                ROW_NUMBER() OVER (PARTITION BY p.opponent_team ORDER BY p.season DESC, p.week DESC) AS rn
+                SUM(p.fantasy_points_ppr) AS game_fp
             FROM player_stats_weekly p
             WHERE p.season = ?
               AND p.week   <= ?
               AND p.position = ?
               AND p.season_type = 'REG'
               AND p.opponent_team IS NOT NULL
+            GROUP BY p.opponent_team, p.game_id, p.week
         ),
-        recent_games AS (
-            SELECT team, game_id, game_fp
-            FROM ranked
-            WHERE rn <= ?
-            GROUP BY team, game_id, game_fp
+        ranked AS (
+            SELECT
+                team, game_id, week, game_fp,
+                ROW_NUMBER() OVER (PARTITION BY team ORDER BY week DESC) AS rn
+            FROM game_totals
         )
         SELECT team, AVG(game_fp) AS recent_fp_per_game
-        FROM recent_games
+        FROM ranked
+        WHERE rn <= ?
         GROUP BY team
     """, [season, week, position, recent_n]).fetchall()
 
