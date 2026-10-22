@@ -167,9 +167,6 @@
     /* ── Trend sparkline ───────────────────────────── */
     .spark-wrap { display: flex; align-items: center; gap: 4px; }
     .spark-val { font-size: 12px; }
-    .trend-up   { color: var(--red); }    /* more FP allowed = bad for fantasy managers */
-    .trend-down { color: var(--green); }  /* fewer FP allowed = tough matchup */
-    .trend-flat { color: var(--text-3); }
 
     /* ── Empty state ───────────────────────────────── */
     .empty-state {
@@ -381,26 +378,11 @@
       return;
     }
 
-    // Compute min/max for heat colouring
-    const vals = dvpData.map(r => r.fp_per_game).filter(v => v != null);
-    const minV = Math.min(...vals), maxV = Math.max(...vals);
-
     tbody.innerHTML = dvpData.map(row => {
-      const heatBg = heatColour(row.fp_per_game, minV, maxV);
+      const heatBg = heatColour(row.rank, dvpData.length);
       const recent = row.recent_fp_per_game != null ? row.recent_fp_per_game.toFixed(1) : '—';
       const home   = row.home_fp_per_game   != null ? row.home_fp_per_game.toFixed(1)   : '—';
       const away   = row.away_fp_per_game   != null ? row.away_fp_per_game.toFixed(1)   : '—';
-
-      // Trend arrow comparing recent vs season
-      let trendHtml = '';
-      if (row.recent_fp_per_game != null && row.fp_per_game != null) {
-        const diff = row.recent_fp_per_game - row.fp_per_game;
-        if (Math.abs(diff) >= 1.5) {
-          trendHtml = diff > 0
-            ? `<span class="trend-up" title="Getting more generous recently">↑</span>`
-            : `<span class="trend-down" title="Getting tougher recently">↓</span>`;
-        }
-      }
 
       const logoHtml = `<img class="team-logo" src="${row.logo_url}" alt="${row.team}"
                              onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
@@ -410,7 +392,7 @@
         <td class="td-rank">${row.rank}</td>
         <td><div class="td-team">${logoHtml}<span>${row.team}</span></div></td>
         <td class="td-num"><span class="heat-cell" style="background:${heatBg}">${row.fp_per_game.toFixed(1)}</span></td>
-        <td class="td-num">${recent} ${trendHtml}</td>
+        <td class="td-num">${recent}</td>
         <td class="td-split">${home}</td>
         <td class="td-split">${away}</td>
         <td class="td-games">${row.games}</td>
@@ -418,20 +400,14 @@
     }).join('');
   }
 
-  // ── Heat colour: red (high/easy) → neutral → green (low/tough) ────────────
-  function heatColour(val, min, max) {
-    if (val == null || max === min) return 'transparent';
-    const t = (val - min) / (max - min); // 0=min(tough), 1=max(easy)
-    // Interpolate: green(52,199,89) → transparent(mid) → red(255,59,48)
-    if (t >= 0.5) {
-      const u = (t - 0.5) * 2;
-      const r = Math.round(255 * u), g = Math.round(59 + (199-59)*(1-u)), b = Math.round(48 + (89-48)*(1-u));
-      return `rgba(${r},${g},${b},${0.12 + 0.13*u})`;
-    } else {
-      const u = (0.5 - t) * 2;
-      const r = Math.round(52 + (255-52)*(1-u)), g = Math.round(199 + (59-199)*(1-u)), b = Math.round(89 + (48-89)*(1-u));
-      return `rgba(${r},${g},${b},${0.12 + 0.13*u})`;
-    }
+  // ── Heat colour: rank 1 (easiest) → red, rank 32 (toughest) → green ────────
+  function heatColour(rank, total) {
+    if (rank == null || total <= 1) return 'transparent';
+    const t = 1 - (rank - 1) / (total - 1); // 1=rank1(easy/green), 0=rank32(tough/red)
+    const r = Math.round(255 + (52  - 255) * t);
+    const g = Math.round(59  + (199 - 59)  * t);
+    const b = Math.round(48  + (89  - 48)  * t);
+    return `rgba(${r},${g},${b},0.22)`;
   }
 
   // ── Column sort ────────────────────────────────────────────────────────────
