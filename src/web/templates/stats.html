@@ -272,6 +272,10 @@
       </select>
     </div>
 
+    <div id="dvp-chart-container" style="position:relative;height:340px;margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px">
+      <canvas id="dvp-chart"></canvas>
+    </div>
+
     <div class="dvp-table-wrap">
       <table id="dvp-table">
         <thead>
@@ -325,12 +329,37 @@
 
 <div id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
   // ── State ──────────────────────────────────────────────────────────────────
   let currentPosition = 'WR';
   let sortCol = 'rank';
   let sortDir = 'asc';
   let dvpData = [];
+  let dvpChart = null;
+  let logoImages = {};  // team abbr → Image object
+  let lockedIdx = -1;   // dataset index locked by click (-1 = none)
+
+  // ── Logo-at-end-of-line plugin ─────────────────────────────────────────────
+  // Only draws logos for highlighted teams (extremes + hovered)
+  const logoEndPlugin = {
+    id: 'logoEnd',
+    afterDatasetsDraw(chart) {
+      const ctx = chart.ctx;
+      const SIZE = 20;
+      chart.data.datasets.forEach((ds, i) => {
+        if (!ds._showLogo) return;
+        const meta = chart.getDatasetMeta(i);
+        if (!meta.visible || !meta.data.length) return;
+        const last = meta.data[meta.data.length - 1];
+        const img  = logoImages[ds.teamAbbr];
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, last.x + 4, last.y - SIZE / 2, SIZE, SIZE);
+        }
+      });
+    }
+  };
+  Chart.register(logoEndPlugin);
 
   // ── Tab switching ──────────────────────────────────────────────────────────
   function switchTab(name, btn) {
@@ -357,17 +386,153 @@
     const tbody  = document.getElementById('dvp-tbody');
     tbody.innerHTML = '<tr class="loading-row"><td colspan="7">Loading<span class="spinner"></span></td></tr>';
 
-    fetch(`/api/stats/defense?position=${currentPosition}&week=${week}&recent_n=${recent}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.status !== 'ok') { showToast('Error: ' + d.message, 'err'); return; }
-        dvpData = d.data;
-        sortCol = 'rank';
-        sortDir = 'asc';
-        renderDvpTable();
-        updateSortHeaders();
+    const tableReq = fetch(`/api/stats/defense?position=${currentPosition}&week=${week}&recent_n=${recent}`)
+      .then(r => r.json());
+    const chartReq = fetch(`/api/stats/defense-trend?position=${currentPosition}&week=${week}`)
+      .then(r => r.json());
+
+    Promise.all([tableReq, chartReq])
+      .then(([tableD, chartD]) => {
+        if (tableD.status === 'ok') {
+          dvpData = tableD.data;
+          sortCol = 'rank'; sortDir = 'asc';
+          renderDvpTable();
+          updateSortHeaders();
+        } else {
+          showToast('Error: ' + tableD.message, 'err');
+        }
+        if (chartD.status === 'ok') {
+          renderDvpChart(chartD.data);
+        }
       })
       .catch(() => showToast('Failed to load data', 'err'));
+  }
+
+  // ── Render DvP line chart ─────────────────────────────────────────────────
+  // Extremes (top 8 easiest + bottom 8 toughest) are fully visible with logos.
+  // The middle 16 are dimmed to near-invisible background context.
+  // Hovering any line spotlights it to full brightness.
+  const HIGHLIGHT_N = 8;  // how many from each end to highlight by default
+
+  // ── Shared highlight logic (used by hover + click) ───────────────────────
+  function applyHighlight(activeIdx, total) {
+    dvpChart.data.datasets.forEach((ds, i) => {
+      const [r, g, b] = heatColourComponents(ds._rank, total);
+      if (i === activeIdx) {
+        ds.borderColor = `rgba(${r},${g},${b},1)`;
+        ds.borderWidth = 2.5;
+        ds._showLogo = true;
+      } else if (activeIdx !== -1) {
+        ds.borderColor = `rgba(${r},${g},${b},0.06)`;
+        ds.borderWidth = 1;
+        ds._showLogo = false;
+      } else {
+        ds.borderColor = ds._isExtreme ? `rgba(${r},${g},${b},0.85)` : `rgba(${r},${g},${b},0.12)`;
+        ds.borderWidth = ds._isExtreme ? 2 : 1;
+        ds._showLogo = ds._isExtreme;
+      }
+    });
+  }
+
+  function renderDvpChart(trendData) {
+    if (dvpChart) { dvpChart.destroy(); dvpChart = null; }
+    lockedIdx = -1;
+    if (!trendData || !trendData.length) return;
+
+    const weeks = [...new Set(trendData.flatMap(t => t.series.map(p => p.week)))].sort((a,b) => a-b);
+
+    const rankMap = {};
+    dvpData.forEach(r => { rankMap[r.team] = r.rank; });
+    const total = dvpData.length || 32;
+
+    // Pre-load logos
+    trendData.forEach(t => {
+      if (!logoImages[t.team]) {
+        const img = new Image();
+        img.src = t.logo_url;
+        img.onload = () => dvpChart && dvpChart.update('none');
+        logoImages[t.team] = img;
+      }
+    });
+
+    const datasets = trendData.map(t => {
+      const rank = rankMap[t.team] || 16;
+      const isExtreme = rank <= HIGHLIGHT_N || rank > total - HIGHLIGHT_N;
+      const [r, g, b] = heatColourComponents(rank, total);
+      const dataMap = Object.fromEntries(t.series.map(p => [p.week, p.fp]));
+      return {
+        label: t.team,
+        teamAbbr: t.team,
+        _rank: rank,
+        _isExtreme: isExtreme,
+        _showLogo: isExtreme,
+        data: weeks.map(w => dataMap[w] ?? null),
+        borderColor: isExtreme ? `rgba(${r},${g},${b},0.85)` : `rgba(${r},${g},${b},0.12)`,
+        backgroundColor: 'transparent',
+        borderWidth: isExtreme ? 2 : 1,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        spanGaps: false,
+        tension: 0.3,
+        order: isExtreme ? 1 : 2,  // extremes draw on top
+      };
+    });
+
+    const ctx = document.getElementById('dvp-chart').getContext('2d');
+    dvpChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: weeks.map(w => 'Wk ' + w), datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        layout: { padding: { right: 36 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'nearest',
+            intersect: false,
+            callbacks: {
+              title: items => items[0].dataset.label,
+              label: item => `Wk ${weeks[item.dataIndex]}: ${item.formattedValue} FP`,
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#636370', font: { size: 11 } },
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#636370', font: { size: 11 } },
+            title: { display: true, text: 'FP Allowed', color: '#636370', font: { size: 11 } },
+          }
+        },
+        interaction: { mode: 'nearest', intersect: false },
+        onHover: (event, elements) => {
+          if (!dvpChart || lockedIdx !== -1) return;  // ignore hover when locked
+          const hoveredIdx = elements.length ? elements[0].datasetIndex : -1;
+          applyHighlight(hoveredIdx, total);
+          dvpChart.update('none');
+        },
+        onClick: (event, elements) => {
+          if (!dvpChart) return;
+          const clickedIdx = elements.length ? elements[0].datasetIndex : -1;
+          if (clickedIdx === -1 || clickedIdx === lockedIdx) {
+            // Click background or same line → release lock
+            lockedIdx = -1;
+            document.getElementById('dvp-chart').style.cursor = 'default';
+          } else {
+            // Lock to clicked line
+            lockedIdx = clickedIdx;
+            document.getElementById('dvp-chart').style.cursor = 'pointer';
+          }
+          applyHighlight(lockedIdx, total);
+          dvpChart.update('none');
+        },
+      }
+    });
   }
 
   // ── Render DvP table ───────────────────────────────────────────────────────
@@ -400,13 +565,21 @@
     }).join('');
   }
 
-  // ── Heat colour: rank 1 (easiest) → red, rank 32 (toughest) → green ────────
-  function heatColour(rank, total) {
-    if (rank == null || total <= 1) return 'transparent';
+  // ── Heat colour helpers ────────────────────────────────────────────────────
+  // Returns [r, g, b] components — used by chart and table helpers
+  function heatColourComponents(rank, total) {
+    if (rank == null || total <= 1) return [100, 100, 100];
     const t = 1 - (rank - 1) / (total - 1); // 1=rank1(easy/green), 0=rank32(tough/red)
-    const r = Math.round(255 + (52  - 255) * t);
-    const g = Math.round(59  + (199 - 59)  * t);
-    const b = Math.round(48  + (89  - 48)  * t);
+    return [
+      Math.round(255 + (52  - 255) * t),
+      Math.round(59  + (199 - 59)  * t),
+      Math.round(48  + (89  - 48)  * t),
+    ];
+  }
+
+  // Returns rgba string for table cells
+  function heatColour(rank, total) {
+    const [r, g, b] = heatColourComponents(rank, total);
     return `rgba(${r},${g},${b},0.22)`;
   }
 

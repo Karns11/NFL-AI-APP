@@ -201,6 +201,59 @@ def _query_dvp(
     return result
 
 
+def get_dvp_trend(
+    position: str,
+    season: int,
+    week: int,
+) -> list[dict]:
+    """
+    Return week-by-week FP allowed per team for a given position through `week`.
+
+    Each entry: { team, logo_url, series: [{week, fp}, ...] }
+    Sorted by team abbreviation.
+    """
+    if position not in POSITIONS:
+        raise ValueError(f"position must be one of {POSITIONS}")
+
+    cached = stats_cache.get("dvp_trend", True, position, season, week)
+    if cached is not None:
+        return cached
+
+    try:
+        db = _get_db()
+        rows = db.execute("""
+            SELECT
+                opponent_team AS team,
+                week,
+                SUM(fantasy_points_ppr) AS fp
+            FROM player_stats_weekly
+            WHERE season = ?
+              AND week   <= ?
+              AND position = ?
+              AND season_type = 'REG'
+              AND opponent_team IS NOT NULL
+            GROUP BY opponent_team, week
+            ORDER BY opponent_team, week
+        """, [season, week, position]).fetchall()
+        db.close()
+    except Exception as e:
+        logger.error(f"DvP trend query failed for {position} s{season}w{week}: {e}")
+        return []
+
+    # Reshape to one entry per team
+    team_map: dict[str, list] = {}
+    for team, wk, fp in rows:
+        team_map.setdefault(team, []).append({"week": int(wk), "fp": round(float(fp), 1)})
+
+    result = [
+        {"team": team, "logo_url": team_logo_url(team), "series": series}
+        for team, series in sorted(team_map.items())
+    ]
+
+    stats_cache.set("dvp_trend", result, position, season, week)
+    return result
+
+
 def get_team_dvp_rank(
     team: str,
     position: str,

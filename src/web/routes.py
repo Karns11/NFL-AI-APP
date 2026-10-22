@@ -287,6 +287,28 @@ def stats():
     return render_template("stats.html", season=season, current_week=current_week)
 
 
+@bp.route("/api/stats/defense-trend")
+@login_required
+def api_stats_defense_trend():
+    from src.stats.defense import get_dvp_trend
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    position = request.args.get("position", "WR").upper()
+    try:
+        week = int(request.args.get("week", current_week))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid week"}), 400
+    week = max(1, min(week, 18))
+    try:
+        data = get_dvp_trend(position, season, week)
+        return jsonify({"status": "ok", "data": data})
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception as e:
+        logger.error(f"DvP trend query failed: {e}")
+        return jsonify({"status": "error", "message": "Query failed"}), 500
+
+
 @bp.route("/api/stats/defense")
 @login_required
 def api_stats_defense():
