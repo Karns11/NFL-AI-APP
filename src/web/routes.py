@@ -287,6 +287,28 @@ def stats():
     return render_template("stats.html", season=season, current_week=current_week)
 
 
+@bp.route("/api/stats/chart-data")
+@login_required
+def api_stats_chart_data():
+    from src.stats.charts import get_chart_data, CHART_SPECS
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    spec_id = request.args.get("spec", "")
+    try:
+        week = int(request.args.get("week", current_week))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid week"}), 400
+    week = max(1, min(week, 18))
+    if spec_id not in CHART_SPECS:
+        return jsonify({"status": "error", "message": f"Unknown spec: {spec_id}"}), 400
+    try:
+        data = get_chart_data(spec_id, season, week)
+        return jsonify({"status": "ok", "data": data})
+    except Exception as e:
+        logger.error(f"Chart data failed for {spec_id}: {e}")
+        return jsonify({"status": "error", "message": "Query failed"}), 500
+
+
 @bp.route("/api/stats/leaderboard")
 @login_required
 def api_stats_leaderboard():

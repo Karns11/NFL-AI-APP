@@ -336,12 +336,27 @@
     </p>
   </div>
 
-  <!-- ── Tab: Quadrant Charts (Phase 3 placeholder) ──────────────────────── -->
+  <!-- ── Tab: Quadrant Charts ─────────────────────────────────────────────── -->
   <div id="tab-charts" style="display:none">
-    <div class="phase-placeholder">
-      <h3>Quadrant Charts — Coming in Phase 3</h3>
-      <p>Interactive X/Y charts — WR volume vs. efficiency, RB opportunity vs. efficiency, defense pass vs. rush allowed, and more.</p>
+
+    <div class="controls">
+      <span class="ctrl-label">Chart</span>
+      <select id="chart-spec-select" onchange="loadQuadrantChart()">
+        <option value="defense-pass-vs-rush">Defense: Pass vs. Rush Allowed</option>
+        <option value="wr-volume-vs-efficiency">WR: Volume vs. Efficiency</option>
+        <option value="rb-opportunity-vs-efficiency">RB: Opportunity vs. Efficiency</option>
+        <option value="qb-volume-vs-efficiency">QB: Volume vs. Efficiency</option>
+        <option value="te-volume-vs-efficiency">TE: Volume vs. Efficiency</option>
+      </select>
     </div>
+
+    <div style="position:relative;height:480px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px">
+      <canvas id="quadrant-chart"></canvas>
+      <div id="quadrant-labels" style="position:absolute;inset:16px;pointer-events:none"></div>
+    </div>
+    <p id="quadrant-chart-note" style="font-size:11px;color:var(--text-3);margin-top:4px">
+      Reference lines at median X and median Y. Hover a point for details.
+    </p>
   </div>
 
   <!-- ── Tab: Trends (Phase 4 placeholder) ───────────────────────────────── -->
@@ -397,6 +412,7 @@
     });
     if (name === 'dvp' && dvpData.length === 0) loadDvp();
     if (name === 'leaderboard' && lbData.length === 0) loadLeaderboard();
+    if (name === 'charts' && !quadrantChart) loadQuadrantChart();
   }
 
   // ── Position selector ─────────────────────────────────────────────────────
@@ -645,6 +661,196 @@
     t.textContent = msg;
     t.className = 'show ' + type;
     setTimeout(() => { t.className = ''; }, 3500);
+  }
+
+  // ── Quadrant chart ────────────────────────────────────────────────────────
+  let quadrantChart = null;
+  let quadrantImages = {};  // url → Image
+
+  // Median reference-line plugin — draws dashed lines at median x and y
+  const quadrantLinePlugin = {
+    id: 'quadrantLines',
+    afterDraw(chart) {
+      if (!chart._medianX || !chart._medianY) return;
+      const ctx  = chart.ctx;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      const mx = xScale.getPixelForValue(chart._medianX);
+      const my = yScale.getPixelForValue(chart._medianY);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth   = 1;
+      ctx.setLineDash([4, 4]);
+      // Vertical median line
+      ctx.beginPath();
+      ctx.moveTo(mx, chart.chartArea.top);
+      ctx.lineTo(mx, chart.chartArea.bottom);
+      ctx.stroke();
+      // Horizontal median line
+      ctx.beginPath();
+      ctx.moveTo(chart.chartArea.left, my);
+      ctx.lineTo(chart.chartArea.right, my);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  // Image/logo drawing plugin — draws headshot or logo at each point
+  const quadrantImagePlugin = {
+    id: 'quadrantImages',
+    afterDatasetsDraw(chart) {
+      const ctx  = chart.ctx;
+      const meta = chart.getDatasetMeta(0);
+      const pts  = chart.data.datasets[0]?._rawPoints || [];
+      meta.data.forEach((el, i) => {
+        const pt  = pts[i];
+        if (!pt) return;
+        const img = quadrantImages[pt.image_url];
+        const SIZE = chart.data.datasets[0]._isTeam ? 22 : 20;
+        const R    = SIZE / 2;
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(el.x, el.y, R, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(img, el.x - R, el.y - R, SIZE, SIZE);
+          ctx.restore();
+        } else {
+          // Fallback: initials circle
+          const initials = (pt.label || '??').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+          ctx.save();
+          ctx.fillStyle   = chart.data.datasets[0].pointBackgroundColor || '#4f8ef7';
+          ctx.beginPath();
+          ctx.arc(el.x, el.y, R, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.font      = `bold ${Math.round(R * 0.9)}px -apple-system,sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(initials, el.x, el.y);
+          ctx.restore();
+        }
+      });
+    }
+  };
+
+  function loadQuadrantChart() {
+    const specId = document.getElementById('chart-spec-select').value;
+    const week   = document.getElementById('dvp-week-select').value;
+
+    if (quadrantChart) { quadrantChart.destroy(); quadrantChart = null; }
+
+    fetch(`/api/stats/chart-data?spec=${specId}&week=${week}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.status !== 'ok') { showToast('Error: ' + d.message, 'err'); return; }
+        renderQuadrantChart(d.data);
+      })
+      .catch(() => showToast('Failed to load chart', 'err'));
+  }
+
+  function _median(vals) {
+    const s = [...vals].sort((a, b) => a - b);
+    const m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  function renderQuadrantChart(data) {
+    if (quadrantChart) { quadrantChart.destroy(); quadrantChart = null; }
+    const points = data.points || [];
+    if (!points.length) return;
+
+    const isTeam = data.entity === 'team';
+    const medX = _median(points.map(p => p.x));
+    const medY = _median(points.map(p => p.y));
+
+    // Pre-load images
+    points.forEach(p => {
+      if (p.image_url && !quadrantImages[p.image_url]) {
+        const img = new Image();
+        img.src = p.image_url;
+        img.onload = () => quadrantChart && quadrantChart.update('none');
+        quadrantImages[p.image_url] = img;
+      }
+    });
+
+    const dataset = {
+      data: points.map(p => ({ x: p.x, y: p.y })),
+      _rawPoints: points,
+      _isTeam: isTeam,
+      pointRadius: isTeam ? 13 : 11,
+      pointHoverRadius: isTeam ? 15 : 13,
+      pointBackgroundColor: points.map(p => {
+        // Color by quadrant: TR=green, BL=red, TL/BR=amber
+        const inRight = p.x >= medX;
+        const inTop   = p.y >= medY;
+        if (inRight && inTop)  return 'rgba(52,199,89,0.75)';   // TR = best
+        if (!inRight && !inTop) return 'rgba(255,59,48,0.75)';  // BL = worst
+        return 'rgba(255,149,0,0.65)';                          // TL/BR = mixed
+      }),
+      pointBorderColor: 'rgba(0,0,0,0.3)',
+      pointBorderWidth: 1,
+    };
+
+    const ctx = document.getElementById('quadrant-chart').getContext('2d');
+    quadrantChart = new Chart(ctx, {
+      type: 'scatter',
+      data: { datasets: [dataset] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => {
+                const pt = points[items[0].dataIndex];
+                return pt ? `${pt.label} (${pt.sublabel})` : '';
+              },
+              label: items => {
+                const pt = points[items[0].dataIndex];
+                if (!pt) return '';
+                return [`${data.x_label}: ${pt.x}`, `${data.y_label}: ${pt.y}`];
+              },
+            }
+          },
+          quadrantLines: true,
+        },
+        scales: {
+          x: {
+            title: { display: true, text: data.x_label, color: '#636370', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#636370', font: { size: 11 } },
+          },
+          y: {
+            title: { display: true, text: data.y_label, color: '#636370', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#636370', font: { size: 11 } },
+          },
+        },
+      },
+      plugins: [quadrantLinePlugin, quadrantImagePlugin],
+    });
+
+    // Attach medians for the line plugin
+    quadrantChart._medianX = medX;
+    quadrantChart._medianY = medY;
+
+    // Render quadrant corner labels
+    renderQuadrantCornerLabels(data.quadrants);
+  }
+
+  function renderQuadrantCornerLabels(quadrants) {
+    const el = document.getElementById('quadrant-labels');
+    if (!quadrants) { el.innerHTML = ''; return; }
+    const s = 'position:absolute;font-size:10px;opacity:0.35;color:var(--text-1);font-weight:500;letter-spacing:0.3px;text-transform:uppercase';
+    el.innerHTML = `
+      <span style="${s};top:4px;left:8px">${quadrants.tl || ''}</span>
+      <span style="${s};top:4px;right:8px;text-align:right">${quadrants.tr || ''}</span>
+      <span style="${s};bottom:28px;left:8px">${quadrants.bl || ''}</span>
+      <span style="${s};bottom:28px;right:8px;text-align:right">${quadrants.br || ''}</span>
+    `;
   }
 
   // ── Leaderboard state & config ─────────────────────────────────────────────
