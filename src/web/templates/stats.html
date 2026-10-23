@@ -359,11 +359,44 @@
     </p>
   </div>
 
-  <!-- ── Tab: Trends (Phase 4 placeholder) ───────────────────────────────── -->
+  <!-- ── Tab: Trends ──────────────────────────────────────────────────────── -->
   <div id="tab-trends" style="display:none">
-    <div class="phase-placeholder">
-      <h3>Trends — Coming in Phase 4</h3>
-      <p>Weekly FP trend lines for players and defenses, plus recent game scores.</p>
+
+    <div class="controls" style="align-items:flex-start;flex-wrap:wrap;gap:8px">
+      <span class="ctrl-label" style="margin-top:8px">Player</span>
+      <div style="position:relative">
+        <input id="trend-search" type="text" placeholder="Search player name…"
+          autocomplete="off"
+          style="background:var(--surface-hi);border:1px solid var(--border);border-radius:6px;color:var(--text-1);font-size:13px;padding:6px 12px;width:240px;outline:none"
+          oninput="onTrendSearch(this.value)"
+          onkeydown="onTrendSearchKey(event)">
+        <div id="trend-dropdown" style="display:none;position:absolute;top:100%;left:0;width:280px;background:var(--surface-hi);border:1px solid var(--border);border-radius:6px;margin-top:4px;z-index:50;overflow:hidden"></div>
+      </div>
+      <div id="trend-player-badge" style="display:none;align-items:center;gap:8px;background:var(--surface-hi);border:1px solid var(--border);border-radius:6px;padding:4px 10px">
+        <img id="trend-headshot" style="width:28px;height:28px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'">
+        <span id="trend-player-name" style="font-size:13px;font-weight:500"></span>
+        <span id="trend-player-meta" style="font-size:11px;color:var(--text-2)"></span>
+        <button onclick="clearTrendPlayer()" style="background:none;border:none;color:var(--text-2);cursor:pointer;font-size:14px;padding:0 2px;line-height:1">✕</button>
+      </div>
+    </div>
+
+    <div id="trend-empty" style="color:var(--text-2);font-size:13px;margin:32px 0 0 4px">
+      Search for a player above to see their week-by-week fantasy point trend.
+    </div>
+
+    <div id="trend-chart-wrap" style="display:none">
+      <div style="display:flex;gap:24px;margin:16px 0 8px;flex-wrap:wrap">
+        <span id="trend-stat-avg"  style="font-size:12px;color:var(--text-2)"></span>
+        <span id="trend-stat-floor" style="font-size:12px;color:var(--text-2)"></span>
+        <span id="trend-stat-ceil" style="font-size:12px;color:var(--text-2)"></span>
+        <span id="trend-stat-games" style="font-size:12px;color:var(--text-2)"></span>
+      </div>
+      <div style="position:relative;height:320px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px">
+        <canvas id="trend-chart"></canvas>
+      </div>
+      <p style="font-size:11px;color:var(--text-3);margin-top:8px">
+        Shaded band = floor (10th pct) to ceiling (90th pct). Dashed line = season average. PPR scoring.
+      </p>
     </div>
   </div>
 
@@ -987,6 +1020,212 @@
     });
     renderLeaderboard();
   }
+
+  // ── Trends ────────────────────────────────────────────────────────────────
+  let trendChart = null;
+  let trendSearchTimer = null;
+  let trendDropdownResults = [];
+  let trendDropdownIdx = -1;
+
+  function onTrendSearch(val) {
+    clearTimeout(trendSearchTimer);
+    if (val.length < 2) { hideTrendDropdown(); return; }
+    trendSearchTimer = setTimeout(() => {
+      fetch(`/api/stats/player-search?q=${encodeURIComponent(val)}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.status !== 'ok') return;
+          trendDropdownResults = d.data;
+          trendDropdownIdx = -1;
+          renderTrendDropdown();
+        });
+    }, 200);
+  }
+
+  function onTrendSearchKey(e) {
+    const dd = document.getElementById('trend-dropdown');
+    if (dd.style.display === 'none') return;
+    if (e.key === 'ArrowDown') {
+      trendDropdownIdx = Math.min(trendDropdownIdx + 1, trendDropdownResults.length - 1);
+      highlightDropdown();
+    } else if (e.key === 'ArrowUp') {
+      trendDropdownIdx = Math.max(trendDropdownIdx - 1, 0);
+      highlightDropdown();
+    } else if (e.key === 'Enter' && trendDropdownIdx >= 0) {
+      selectTrendPlayer(trendDropdownResults[trendDropdownIdx]);
+    } else if (e.key === 'Escape') {
+      hideTrendDropdown();
+    }
+  }
+
+  function renderTrendDropdown() {
+    const dd = document.getElementById('trend-dropdown');
+    if (!trendDropdownResults.length) { hideTrendDropdown(); return; }
+    dd.innerHTML = trendDropdownResults.map((p, i) => {
+      const img = p.headshot_url
+        ? `<img src="${p.headshot_url}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`
+        : `<span style="width:24px;height:24px;border-radius:50%;background:var(--surface);display:inline-block;flex-shrink:0"></span>`;
+      return `<div class="trend-dd-item" data-idx="${i}"
+        style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:13px"
+        onmouseenter="trendDropdownIdx=${i};highlightDropdown()"
+        onclick="selectTrendPlayer(trendDropdownResults[${i}])">
+        ${img}
+        <span style="font-weight:500">${p.name}</span>
+        <span style="color:var(--text-2);font-size:11px">${p.position} · ${p.team}</span>
+      </div>`;
+    }).join('');
+    dd.style.display = '';
+  }
+
+  function highlightDropdown() {
+    document.querySelectorAll('.trend-dd-item').forEach((el, i) => {
+      el.style.background = i === trendDropdownIdx ? 'var(--surface)' : '';
+    });
+  }
+
+  function hideTrendDropdown() {
+    document.getElementById('trend-dropdown').style.display = 'none';
+    trendDropdownResults = [];
+  }
+
+  function selectTrendPlayer(player) {
+    hideTrendDropdown();
+    document.getElementById('trend-search').value = '';
+
+    // Show badge
+    const badge = document.getElementById('trend-player-badge');
+    document.getElementById('trend-headshot').src = player.headshot_url || '';
+    document.getElementById('trend-player-name').textContent = player.name;
+    document.getElementById('trend-player-meta').textContent = `${player.position} · ${player.team}`;
+    badge.style.display = 'flex';
+
+    document.getElementById('trend-empty').style.display = 'none';
+    document.getElementById('trend-chart-wrap').style.display = 'none';
+
+    fetch(`/api/stats/trends?player_id=${encodeURIComponent(player.player_id)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.status !== 'ok') { showToast('Error: ' + d.message, 'err'); return; }
+        renderTrendChart(d.data);
+      })
+      .catch(() => showToast('Failed to load trend', 'err'));
+  }
+
+  function clearTrendPlayer() {
+    if (trendChart) { trendChart.destroy(); trendChart = null; }
+    document.getElementById('trend-player-badge').style.display = 'none';
+    document.getElementById('trend-chart-wrap').style.display = 'none';
+    document.getElementById('trend-empty').style.display = '';
+  }
+
+  function renderTrendChart(data) {
+    if (trendChart) { trendChart.destroy(); trendChart = null; }
+
+    const series  = data.series || [];
+    const weeks   = series.map(s => `Wk ${s.week}`);
+    const fps     = series.map(s => s.fp);
+    const avg     = data.season_avg;
+    const floor   = data.floor;
+    const ceiling = data.ceiling;
+
+    // Summary stats
+    document.getElementById('trend-stat-avg').textContent   = `Season avg: ${avg} FP`;
+    document.getElementById('trend-stat-floor').textContent = `Floor: ${floor} FP`;
+    document.getElementById('trend-stat-ceil').textContent  = `Ceiling: ${ceiling} FP`;
+    document.getElementById('trend-stat-games').textContent = `${data.games} games`;
+
+    document.getElementById('trend-chart-wrap').style.display = '';
+
+    const ctx = document.getElementById('trend-chart').getContext('2d');
+    trendChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: weeks,
+        datasets: [
+          // Floor/ceiling fill band — two lines with fill between
+          {
+            label: 'Ceiling',
+            data: weeks.map(() => ceiling),
+            borderColor: 'transparent',
+            backgroundColor: 'rgba(79,142,247,0.10)',
+            pointRadius: 0,
+            fill: '+1',
+            tension: 0,
+          },
+          {
+            label: 'Floor',
+            data: weeks.map(() => floor),
+            borderColor: 'transparent',
+            backgroundColor: 'rgba(79,142,247,0.10)',
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+          },
+          // Season average dashed line
+          {
+            label: 'Season avg',
+            data: weeks.map(() => avg),
+            borderColor: 'rgba(255,149,0,0.5)',
+            borderWidth: 1.5,
+            borderDash: [5, 4],
+            pointRadius: 0,
+            fill: false,
+            tension: 0,
+          },
+          // Weekly FP line
+          {
+            label: 'FP',
+            data: fps,
+            borderColor: '#4f8ef7',
+            borderWidth: 2.5,
+            backgroundColor: 'rgba(79,142,247,0.15)',
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: fps.map(v => v >= avg ? 'rgba(52,199,89,0.9)' : 'rgba(255,59,48,0.9)'),
+            pointBorderColor: 'transparent',
+            tension: 0.3,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: item => item.dataset.label === 'FP',
+            callbacks: {
+              title: items => weeks[items[0].dataIndex],
+              label: items => {
+                const s = series[items[0].dataIndex];
+                return [`${items[0].formattedValue} FP`, s?.opp ? `vs ${s.opp}` : ''];
+              },
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#636370', font: { size: 11 } },
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#636370', font: { size: 11 } },
+            title: { display: true, text: 'Fantasy Points', color: '#636370', font: { size: 11 } },
+          }
+        },
+      },
+    });
+  }
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#trend-search') && !e.target.closest('#trend-dropdown')) {
+      hideTrendDropdown();
+    }
+  });
 
   // ── Init ───────────────────────────────────────────────────────────────────
   loadDvp();

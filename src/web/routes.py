@@ -287,6 +287,28 @@ def stats():
     return render_template("stats.html", season=season, current_week=current_week)
 
 
+@bp.route("/api/stats/player-search")
+@login_required
+def api_stats_player_search():
+    from src.stats.trends import search_players
+    query = request.args.get("q", "").strip()
+    data = search_players(query, _CURRENT_SEASON)
+    return jsonify({"status": "ok", "data": data})
+
+
+@bp.route("/api/stats/trends")
+@login_required
+def api_stats_trends():
+    from src.stats.trends import get_player_trend
+    player_id = request.args.get("player_id", "").strip()
+    if not player_id:
+        return jsonify({"status": "error", "message": "player_id required"}), 400
+    data = get_player_trend(player_id, _CURRENT_SEASON)
+    if not data:
+        return jsonify({"status": "error", "message": "Player not found"}), 404
+    return jsonify({"status": "ok", "data": data})
+
+
 @bp.route("/api/stats/chart-data")
 @login_required
 def api_stats_chart_data():
