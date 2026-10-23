@@ -301,12 +301,39 @@
     </p>
   </div>
 
-  <!-- ── Tab: Leaderboards (Phase 2 placeholder) ─────────────────────────── -->
+  <!-- ── Tab: Leaderboards ────────────────────────────────────────────────── -->
   <div id="tab-leaderboard" style="display:none">
-    <div class="phase-placeholder">
-      <h3>Leaderboards — Coming in Phase 2</h3>
-      <p>Per-position season and recent-week leaderboards with usage metrics (snap%, target share, carries).</p>
+
+    <div class="controls">
+      <span class="ctrl-label">Position</span>
+      <div class="seg-group" id="lb-pos-group">
+        <button class="seg-btn active" onclick="setLbPosition('WR', this)">WR</button>
+        <button class="seg-btn"        onclick="setLbPosition('RB', this)">RB</button>
+        <button class="seg-btn"        onclick="setLbPosition('QB', this)">QB</button>
+        <button class="seg-btn"        onclick="setLbPosition('TE', this)">TE</button>
+      </div>
+      <span class="ctrl-label" style="margin-left:8px">Window</span>
+      <select id="lb-window-select" onchange="loadLeaderboard()">
+        <option value="">Season</option>
+        <option value="4" selected>Last 4 weeks</option>
+        <option value="6">Last 6 weeks</option>
+        <option value="8">Last 8 weeks</option>
+      </select>
     </div>
+
+    <div class="dvp-table-wrap">
+      <table id="lb-table">
+        <thead id="lb-thead">
+          <tr><th colspan="10">Loading…</th></tr>
+        </thead>
+        <tbody id="lb-tbody">
+          <tr class="loading-row"><td colspan="10">Loading<span class="spinner"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:11px;color:var(--text-3);margin-top:10px">
+      Min 3 games played to appear. PPR scoring.
+    </p>
   </div>
 
   <!-- ── Tab: Quadrant Charts (Phase 3 placeholder) ──────────────────────── -->
@@ -369,6 +396,7 @@
       document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
     });
     if (name === 'dvp' && dvpData.length === 0) loadDvp();
+    if (name === 'leaderboard' && lbData.length === 0) loadLeaderboard();
   }
 
   // ── Position selector ─────────────────────────────────────────────────────
@@ -617,6 +645,141 @@
     t.textContent = msg;
     t.className = 'show ' + type;
     setTimeout(() => { t.className = ''; }, 3500);
+  }
+
+  // ── Leaderboard state & config ─────────────────────────────────────────────
+  let lbPosition = 'WR';
+  let lbData = [];
+  let lbSortCol = 'fp_total';
+  let lbSortDir = 'desc';
+
+  const LB_COLS = {
+    WR: [
+      { key: 'rank',      label: 'Rk',        fmt: v => v },
+      { key: 'name',      label: 'Player',     fmt: v => v, align: 'left' },
+      { key: 'team',      label: 'Team',       fmt: v => v },
+      { key: 'games',     label: 'GP',         fmt: v => v },
+      { key: 'fp_total',  label: 'FP (total)', fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'fp_avg',    label: 'FP/G',       fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'tgt_avg',   label: 'Tgt/G',      fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'tgt_share', label: 'Tgt%',       fmt: v => v != null ? v.toFixed(1) + '%' : '—' },
+      { key: 'wopr',      label: 'WOPR',       fmt: v => v?.toFixed(2) ?? '—' },
+      { key: 'snap_pct',  label: 'Snap%',      fmt: v => v != null ? v.toFixed(0) + '%' : '—' },
+    ],
+    TE: [
+      { key: 'rank',      label: 'Rk',        fmt: v => v },
+      { key: 'name',      label: 'Player',     fmt: v => v, align: 'left' },
+      { key: 'team',      label: 'Team',       fmt: v => v },
+      { key: 'games',     label: 'GP',         fmt: v => v },
+      { key: 'fp_total',  label: 'FP (total)', fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'fp_avg',    label: 'FP/G',       fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'tgt_avg',   label: 'Tgt/G',      fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'tgt_share', label: 'Tgt%',       fmt: v => v != null ? v.toFixed(1) + '%' : '—' },
+      { key: 'wopr',      label: 'WOPR',       fmt: v => v?.toFixed(2) ?? '—' },
+      { key: 'snap_pct',  label: 'Snap%',      fmt: v => v != null ? v.toFixed(0) + '%' : '—' },
+    ],
+    RB: [
+      { key: 'rank',        label: 'Rk',          fmt: v => v },
+      { key: 'name',        label: 'Player',       fmt: v => v, align: 'left' },
+      { key: 'team',        label: 'Team',         fmt: v => v },
+      { key: 'games',       label: 'GP',           fmt: v => v },
+      { key: 'fp_total',    label: 'FP (total)',   fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'fp_avg',      label: 'FP/G',         fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'carries_avg', label: 'Car/G',        fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'rush_yds_avg',label: 'RuYd/G',       fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'tgt_avg',     label: 'Tgt/G',        fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'snap_pct',    label: 'Snap%',        fmt: v => v != null ? v.toFixed(0) + '%' : '—' },
+    ],
+    QB: [
+      { key: 'rank',         label: 'Rk',         fmt: v => v },
+      { key: 'name',         label: 'Player',      fmt: v => v, align: 'left' },
+      { key: 'team',         label: 'Team',        fmt: v => v },
+      { key: 'games',        label: 'GP',          fmt: v => v },
+      { key: 'fp_total',     label: 'FP (total)',  fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'fp_avg',       label: 'FP/G',        fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'att_avg',      label: 'Att/G',       fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'pass_yds_avg', label: 'PaYd/G',      fmt: v => v?.toFixed(1) ?? '—' },
+      { key: 'pass_td_avg',  label: 'TD/G',        fmt: v => v?.toFixed(2) ?? '—' },
+      { key: 'rush_yds_avg', label: 'RuYd/G',      fmt: v => v?.toFixed(1) ?? '—' },
+    ],
+  };
+
+  function setLbPosition(pos, btn) {
+    lbPosition = pos;
+    document.querySelectorAll('#lb-pos-group .seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    lbSortCol = 'fp_total';
+    lbSortDir = 'desc';
+    loadLeaderboard();
+  }
+
+  function loadLeaderboard() {
+    const nWeeks = document.getElementById('lb-window-select').value;
+    const week   = document.getElementById('dvp-week-select').value; // reuse same week selector
+    const tbody  = document.getElementById('lb-tbody');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="10">Loading<span class="spinner"></span></td></tr>';
+
+    const params = new URLSearchParams({ position: lbPosition, week });
+    if (nWeeks) params.set('n_weeks', nWeeks);
+
+    fetch(`/api/stats/leaderboard?${params}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.status !== 'ok') { showToast('Error: ' + d.message, 'err'); return; }
+        lbData = d.data;
+        renderLeaderboard();
+      })
+      .catch(() => showToast('Failed to load leaderboard', 'err'));
+  }
+
+  function renderLeaderboard() {
+    const cols = LB_COLS[lbPosition];
+    const thead = document.getElementById('lb-thead');
+    const tbody  = document.getElementById('lb-tbody');
+
+    // Header
+    thead.innerHTML = '<tr>' + cols.map(c => {
+      const active = c.key === lbSortCol ? (lbSortDir === 'asc' ? ' sorted-asc' : ' sorted-desc') : '';
+      const align  = c.align === 'left' ? ' style="text-align:left"' : '';
+      return `<th class="td-num${active}" data-col="${c.key}"${align} onclick="sortLeaderboard(this)">${c.label}</th>`;
+    }).join('') + '</tr>';
+
+    if (!lbData.length) {
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="10">No data available.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = lbData.map(row => {
+      return '<tr>' + cols.map(c => {
+        const val = row[c.key];
+        const isName = c.key === 'name';
+        if (isName) {
+          const img = row.headshot_url
+            ? `<img src="${row.headshot_url}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;margin-right:7px;vertical-align:middle;background:var(--surface-hi)" onerror="this.style.display='none'">`
+            : '';
+          return `<td style="text-align:left;white-space:nowrap">${img}<span>${val ?? '—'}</span> <span style="color:var(--text-2);font-size:12px">${row.team ?? ''}</span></td>`;
+        }
+        const align = c.align === 'left' ? 'text-align:left' : 'text-align:right';
+        return `<td style="${align};padding-right:16px">${c.fmt(val)}</td>`;
+      }).join('') + '</tr>';
+    }).join('');
+  }
+
+  function sortLeaderboard(th) {
+    const col = th.dataset.col;
+    if (lbSortCol === col) {
+      lbSortDir = lbSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      lbSortCol = col;
+      lbSortDir = (col === 'rank' || col === 'name' || col === 'team') ? 'asc' : 'desc';
+    }
+    lbData.sort((a, b) => {
+      const va = a[col] ?? (lbSortDir === 'asc' ? Infinity : -Infinity);
+      const vb = b[col] ?? (lbSortDir === 'asc' ? Infinity : -Infinity);
+      if (typeof va === 'string') return lbSortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return lbSortDir === 'asc' ? va - vb : vb - va;
+    });
+    renderLeaderboard();
   }
 
   // ── Init ───────────────────────────────────────────────────────────────────

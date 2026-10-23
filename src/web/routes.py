@@ -287,6 +287,32 @@ def stats():
     return render_template("stats.html", season=season, current_week=current_week)
 
 
+@bp.route("/api/stats/leaderboard")
+@login_required
+def api_stats_leaderboard():
+    from src.stats.leaderboards import get_leaderboard
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    position = request.args.get("position", "WR").upper()
+    try:
+        week    = int(request.args.get("week", current_week))
+        n_weeks = request.args.get("n_weeks")
+        n_weeks = int(n_weeks) if n_weeks else None
+    except (TypeError, ValueError):
+        return jsonify({"status": "error", "message": "Invalid parameters"}), 400
+    week = max(1, min(week, 18))
+    if n_weeks is not None:
+        n_weeks = max(1, min(n_weeks, 17))
+    try:
+        data = get_leaderboard(position, season, week, n_weeks)
+        return jsonify({"status": "ok", "data": data})
+    except ValueError as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Leaderboard query failed: {e}")
+        return jsonify({"status": "error", "message": "Query failed"}), 500
+
+
 @bp.route("/api/stats/defense-trend")
 @login_required
 def api_stats_defense_trend():
