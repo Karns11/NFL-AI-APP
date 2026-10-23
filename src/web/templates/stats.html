@@ -221,9 +221,9 @@
 
 <nav class="nav">
   <a href="{{ url_for('main.index') }}" class="nav-brand">LineupIQ</a>
+  <a href="{{ url_for('main.index') }}" class="nav-link">Dashboard</a>
+  <a href="{{ url_for('main.stats') }}" class="nav-link active">Stats</a>
   <div class="nav-right">
-    <a href="{{ url_for('main.index') }}"  class="nav-link">Dashboard</a>
-    <a href="{{ url_for('main.stats') }}"  class="nav-link active">Stats</a>
     <span class="nav-sep"></span>
     <span class="nav-user">{{ current_user.display_name }}</span>
     <span class="nav-sep"></span>
