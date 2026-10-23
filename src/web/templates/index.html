@@ -282,9 +282,25 @@
       background: rgba(142,142,147,.10); color: var(--text-3);
       flex-shrink: 0;
     }
-    .ai-limit-note {
-      font-size: 10px; color: var(--text-3); margin-left: 4px; white-space: nowrap;
-    }
+    /* ── Refresh split-button + dropdown ─────────── */
+    .refresh-btn-wrap  { position: relative; }
+    .refresh-split-btn { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .refresh-main      { padding: 6px 12px; background: var(--surface-hi); color: var(--text-1); border: none; cursor: pointer; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+    .refresh-main:hover:not(:disabled) { background: var(--border); }
+    .refresh-main:disabled { opacity: 0.5; cursor: not-allowed; }
+    .refresh-chevron   { padding: 6px 9px; background: var(--surface-hi); color: var(--text-2); border: none; border-left: 1px solid var(--border); cursor: pointer; font-size: 10px; display: flex; align-items: center; }
+    .refresh-chevron:hover { background: var(--border); color: var(--text-1); }
+    .refresh-menu      { position: absolute; top: calc(100% + 6px); right: 0; width: 290px; background: var(--surface-hi); border: 1px solid var(--border); border-radius: 8px; padding: 4px; z-index: 200; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+    .refresh-menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; background: none; border: none; border-radius: 6px; color: var(--text-1); cursor: pointer; font-size: 13px; text-align: left; }
+    .refresh-menu-item:hover:not(:disabled) { background: var(--surface); }
+    .refresh-menu-item:disabled { opacity: 0.4; cursor: not-allowed; }
+    .rmi-label   { display: block; font-weight: 500; font-size: 13px; }
+    .rmi-desc    { display: block; font-size: 11px; color: var(--text-2); margin-top: 1px; }
+    .rmi-icon    { font-size: 14px; width: 22px; text-align: center; flex-shrink: 0; }
+    .rmi-ai      { color: var(--accent); }
+    .rmi-credits { margin-left: auto; font-size: 11px; color: var(--text-3); white-space: nowrap; padding-left: 8px; }
+    .rmi-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+    .rmi-limit-note { font-size: 11px; color: var(--amber); text-align: center; padding: 5px 0 3px; }
     .p-meta { font-size: 11px; color: var(--text-2); margin-top: 2px; }
 
 .shap-arrow { font-size: 10px; flex-shrink: 0; cursor: default; }
@@ -511,20 +527,45 @@
       {% if cached %}
       {% set ai_blocked = (ai_uses_remaining == 0) %}
       <span class="nav-sep"></span>
-      <button class="btn btn-secondary" id="btn-refresh" onclick="doRefresh(false)">
-        Refresh <span class="spinner" id="spin-refresh"></span>
-      </button>
-      <button class="btn btn-primary" id="btn-refresh-ai" onclick="doRefresh(true)"
-              {% if ai_blocked %}disabled title="AI limit reached for today — resets midnight ET"{% endif %}>
-        Refresh + AI <span class="spinner" id="spin-ai"></span>
-      </button>
-      <button class="btn btn-secondary" id="btn-refresh-force" onclick="doRefreshForce()"
-              {% if ai_blocked %}disabled title="AI limit reached for today — resets midnight ET"{% endif %}>
-        Regenerate AI <span class="spinner" id="spin-force"></span>
-      </button>
-      <span class="ai-limit-note">
-        {% if ai_uses_remaining > 0 %}{{ ai_uses_remaining }} AI generation remaining today{% else %}AI limit reached · resets midnight ET{% endif %}
-      </span>
+      <div class="refresh-btn-wrap" id="refresh-wrap">
+        <div class="refresh-split-btn">
+          <button class="refresh-main" id="btn-refresh-main" onclick="doRefresh(false)">
+            ↻ Refresh <span class="spinner" id="spin-refresh"></span>
+          </button>
+          <button class="refresh-chevron" id="btn-chevron" onclick="toggleRefreshMenu(event)" aria-label="More options">▾</button>
+        </div>
+        <div class="refresh-menu" id="refresh-menu" style="display:none">
+          <button class="refresh-menu-item" onclick="doRefresh(false);closeRefreshMenu()">
+            <span class="rmi-icon">↻</span>
+            <span>
+              <span class="rmi-label">Refresh</span>
+              <span class="rmi-desc">Update stats &amp; injuries · no AI</span>
+            </span>
+          </button>
+          <div class="rmi-divider"></div>
+          <button class="refresh-menu-item" onclick="doRefresh(true);closeRefreshMenu()"
+                  {% if ai_blocked %}disabled{% endif %}>
+            <span class="rmi-icon rmi-ai">✦</span>
+            <span>
+              <span class="rmi-label">Refresh + AI</span>
+              <span class="rmi-desc">Update everything &amp; regenerate summaries</span>
+            </span>
+            <span class="rmi-credits">{{ ai_uses_remaining }} left</span>
+          </button>
+          <button class="refresh-menu-item" onclick="doRefreshForce();closeRefreshMenu()"
+                  {% if ai_blocked %}disabled{% endif %}>
+            <span class="rmi-icon rmi-ai">✦</span>
+            <span>
+              <span class="rmi-label">Regenerate AI</span>
+              <span class="rmi-desc">Force-rewrite all AI summaries</span>
+            </span>
+            <span class="rmi-credits">{{ ai_uses_remaining }} left</span>
+          </button>
+          {% if ai_blocked %}
+          <div class="rmi-limit-note">AI limit reached · resets midnight ET</div>
+          {% endif %}
+        </div>
+      </div>
       {% endif %}
     {% else %}
       <span class="nav-sep"></span>
@@ -747,20 +788,33 @@ function doGenerateWeek(week) {
   });
 }
 
-function doRefresh(withAI) {
-  const btnR  = document.getElementById('btn-refresh');
-  const btnAI = document.getElementById('btn-refresh-ai');
-  const spin  = document.getElementById(withAI ? 'spin-ai' : 'spin-refresh');
+function toggleRefreshMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('refresh-menu');
+  menu.style.display = menu.style.display === 'none' ? '' : 'none';
+}
 
-  if (btnR)  btnR.disabled  = true;
-  if (btnAI) btnAI.disabled = true;
-  if (spin)  spin.style.display = 'inline-block';
+function closeRefreshMenu() {
+  const menu = document.getElementById('refresh-menu');
+  if (menu) menu.style.display = 'none';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#refresh-wrap')) closeRefreshMenu();
+});
+
+function doRefresh(withAI) {
+  const btn  = document.getElementById('btn-refresh-main');
+  const spin = document.getElementById('spin-refresh');
+
+  if (btn)  btn.disabled = true;
+  if (spin) spin.style.display = 'inline-block';
 
   fetch(withAI ? '/api/refresh-full' : '/api/refresh', { method: 'POST' })
     .then(r => r.json())
     .then(d => {
       if (d.status === 'ok') {
-        showToast('Report updated', 'ok');
+        showToast(withAI ? 'Report updated with AI' : 'Report updated', 'ok');
         setTimeout(() => location.reload(), 800);
       } else if (d.status === 'limit') {
         showToast(d.message, 'err');
@@ -770,15 +824,14 @@ function doRefresh(withAI) {
     })
     .catch(() => showToast('Request failed', 'err'))
     .finally(() => {
-      if (btnR)  btnR.disabled  = false;
-      if (btnAI) btnAI.disabled = false;
-      if (spin)  spin.style.display = 'none';
+      if (btn)  btn.disabled = false;
+      if (spin) spin.style.display = 'none';
     });
 }
 
 function doRefreshForce() {
-  const btn  = document.getElementById('btn-refresh-force');
-  const spin = document.getElementById('spin-force');
+  const btn  = document.getElementById('btn-refresh-main');
+  const spin = document.getElementById('spin-refresh');
 
   if (btn)  btn.disabled = true;
   if (spin) spin.style.display = 'inline-block';
