@@ -1,0 +1,4 @@
+# Replace YOUR_SUBDOMAIN with your DuckDNS subdomain (e.g. lineupiq.duckdns.org)
+YOUR_SUBDOMAIN.duckdns.org {
+    reverse_proxy localhost:8080
+}

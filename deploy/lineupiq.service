@@ -1,0 +1,14 @@
+[Unit]
+Description=LineupIQ Fantasy Football App
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/NFL-AI-Agent
+EnvironmentFile=/home/pi/NFL-AI-Agent/.env
+ExecStart=/usr/bin/python3 app.py --no-browser --port 8080
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
