@@ -3,6 +3,8 @@ Flask route handlers for the LineupIQ web app.
 """
 
 import logging
+import time
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for, flash
@@ -19,7 +21,22 @@ from src.predictions.predict import get_current_week, _CURRENT_SEASON
 
 logger = logging.getLogger(__name__)
 
-DAILY_AI_LIMIT = 10  # TODO: revert to 1 before deploying to production!
+DAILY_AI_LIMIT = 1
+
+# ── Login rate limiting ───────────────────────────────────────────────────────
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_LOGIN_WINDOW = 300   # 5 minutes
+_LOGIN_MAX    = 10    # attempts per window
+
+
+def _check_login_rate(ip: str) -> bool:
+    """Return False if this IP has exceeded the login rate limit."""
+    now = time.time()
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < _LOGIN_WINDOW]
+    if len(_login_attempts[ip]) >= _LOGIN_MAX:
+        return False
+    _login_attempts[ip].append(now)
+    return True
 
 bp = Blueprint("main", __name__)
 
@@ -32,6 +49,10 @@ def login():
         return redirect(url_for("main.index"))
 
     if request.method == "POST":
+        if not _check_login_rate(request.remote_addr):
+            flash("Too many login attempts. Please try again in 5 minutes.", "error")
+            return render_template("login.html"), 429
+
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 

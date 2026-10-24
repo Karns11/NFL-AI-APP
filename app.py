@@ -35,7 +35,23 @@ logging.getLogger("src.predictions.weekly").setLevel(logging.INFO)
 logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
 app = Flask(__name__, template_folder="src/web/templates")
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
+
+_secret_key = os.environ.get("SECRET_KEY")
+if not _secret_key:
+    raise RuntimeError("SECRET_KEY environment variable is not set. Add it to your .env file.")
+app.secret_key = _secret_key
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
 
 # ── Flask-Login ───────────────────────────────────────────────────────────────
 

@@ -19,9 +19,6 @@ from src.web import report_cache
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_USERNAME = "Karns11"
-
-
 def _serialize_card(card) -> dict:
     return {
         "sleeper_id": card.sleeper_id,
@@ -46,7 +43,7 @@ def _serialize_card(card) -> dict:
 
 
 def run_pipeline(
-    username: str = DEFAULT_USERNAME,
+    username: str,
     week: int | None = None,
     season: int = _CURRENT_SEASON,
     use_llm: bool = True,
