@@ -21,7 +21,7 @@ from src.predictions.predict import get_current_week, _CURRENT_SEASON
 
 logger = logging.getLogger(__name__)
 
-DAILY_AI_LIMIT = 1
+DAILY_AI_LIMIT = 10
 
 # ── Login rate limiting ───────────────────────────────────────────────────────
 _login_attempts: dict[str, list[float]] = defaultdict(list)
