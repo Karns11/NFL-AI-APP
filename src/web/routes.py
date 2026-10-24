@@ -438,7 +438,7 @@ def refresh():
     try:
         from src.web.pipeline import run_pipeline
         current_week = get_current_week(_CURRENT_SEASON)
-        run_pipeline(username=sleeper_username, week=current_week, use_llm=False)
+        run_pipeline(username=sleeper_username, week=current_week, use_llm=False, refresh_injuries=True)
         return jsonify({"status": "ok", "message": "Report refreshed"})
     except Exception as e:
         logger.error(f"Refresh failed for {sleeper_username}: {e}")
