@@ -65,9 +65,9 @@ def load_player_stats(seasons: list[int], force_refresh: bool = False) -> pl.Dat
             _upsert(db, "player_stats_weekly", new_data)
             logger.info(f"  Saved {len(new_data):,} rows.")
 
-    return db.execute(
+    return pl.from_arrow(db.execute(
         "SELECT * FROM player_stats_weekly ORDER BY season, week, player_id"
-    ).pl()
+    ).arrow())
 
 
 def load_snap_counts(seasons: list[int], force_refresh: bool = False) -> pl.DataFrame:
@@ -93,7 +93,7 @@ def load_snap_counts(seasons: list[int], force_refresh: bool = False) -> pl.Data
             new_data = pl.concat(frames, how="diagonal_relaxed")
             _upsert(db, "snap_counts", new_data)
 
-    return db.execute("SELECT * FROM snap_counts ORDER BY season, week").pl()
+    return pl.from_arrow(db.execute("SELECT * FROM snap_counts ORDER BY season, week").arrow())
 
 
 def load_schedules(seasons: list[int], force_refresh: bool = False) -> pl.DataFrame:
@@ -120,7 +120,7 @@ def load_schedules(seasons: list[int], force_refresh: bool = False) -> pl.DataFr
             new_data = pl.concat(frames, how="diagonal_relaxed")
             _upsert(db, "schedules", new_data)
 
-    return db.execute("SELECT * FROM schedules ORDER BY season, week").pl()
+    return pl.from_arrow(db.execute("SELECT * FROM schedules ORDER BY season, week").arrow())
 
 
 def load_player_id_map() -> pl.DataFrame:
@@ -134,7 +134,7 @@ def load_player_id_map() -> pl.DataFrame:
     try:
         count = db.execute("SELECT COUNT(*) FROM player_id_map").fetchone()[0]
         if count > 0:
-            return db.execute("SELECT * FROM player_id_map").pl()
+            return pl.from_arrow(db.execute("SELECT * FROM player_id_map").arrow())
     except duckdb.CatalogException:
         pass
 
