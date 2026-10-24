@@ -14,7 +14,6 @@ venv/
 env/
 
 # Data — regenerable by running the pipeline
-data/db/*.duckdb
 data/raw/
 
 # Old Phase 1 models (superseded by _p2 versions)

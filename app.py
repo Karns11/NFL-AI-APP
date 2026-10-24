@@ -43,6 +43,8 @@ app.secret_key = _secret_key
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+if os.environ.get("RENDER"):
+    app.config["SESSION_COOKIE_SECURE"] = True
 
 
 @app.after_request
