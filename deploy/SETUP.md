@@ -1,62 +1,114 @@
-# Pi Setup
+# LineupIQ — Pi Setup Guide
+
+## Prerequisites
+- Raspberry Pi 5 (8GB) with Docker installed
+- DuckDNS account with a subdomain
+
+---
 
 ## 1. DuckDNS (free dynamic DNS)
-1. Go to duckdns.org, sign in, create a subdomain (e.g. `lineupiq`)
-2. Note your token
-3. Set up auto-update cron so your home IP stays current:
-   ```
+
+1. Go to duckdns.org, sign in with Google/GitHub
+2. Create a subdomain (e.g. `lineupiq`) → your URL will be `lineupiq.duckdns.org`
+3. Note your token
+4. Set up IP auto-update on the Pi:
+   ```bash
    crontab -e
-   # Add this line:
-   */5 * * * * curl -s "https://www.duckdns.org/update?domains=lineupiq&token=YOUR_TOKEN&ip=" > /dev/null
+   # Add (replace YOUR_SUBDOMAIN and YOUR_TOKEN):
+   */5 * * * * curl -s "https://www.duckdns.org/update?domains=YOUR_SUBDOMAIN&token=YOUR_TOKEN&ip=" > /dev/null
    ```
 
-## 2. Install dependencies
-```bash
-sudo apt update && sudo apt install -y python3-pip caddy git
-pip3 install -r requirements.txt
-```
+---
 
-## 3. Clone the repo
+## 2. Clone the repo and create .env
+
 ```bash
 cd ~
-git clone https://github.com/Karns11/NFL-AI-APP.git NFL-AI-Agent
-cd NFL-AI-Agent
-cp .env.example .env   # then fill in your values
+git clone https://github.com/Karns11/NFL-AI-APP.git lineupiq
+cd lineupiq
+nano .env
 ```
 
-## 4. .env on the Pi
+`.env` contents:
 ```
-ANTHROPIC_API_KEY=your_key
-SECRET_KEY=your_secret_key
-SECURE_COOKIES=true
+ANTHROPIC_API_KEY=your_key_here
+SECRET_KEY=your_secret_key_here
 ```
 
-## 5. Install the systemd service
+(`SECURE_COOKIES=true` is set automatically by docker-compose.yml)
+
+---
+
+## 3. Start the app
+
 ```bash
-sudo cp deploy/lineupiq.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable lineupiq
-sudo systemctl start lineupiq
+docker compose up -d --build
 ```
 
-## 6. Configure Caddy
+First build takes 10–15 min (downloads and compiles heavy ML packages).
+Subsequent builds are fast (layer cache).
+
+Check it's running:
 ```bash
+docker logs lineupiq
+```
+
+---
+
+## 4. Install and configure Caddy
+
+```bash
+sudo apt install -y caddy
+
+# Copy config and edit with your subdomain
 sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
-# Edit it: replace YOUR_SUBDOMAIN with your actual DuckDNS subdomain
-sudo nano /etc/caddy/Caddyfile
+sudo nano /etc/caddy/Caddyfile   # replace YOUR_SUBDOMAIN
+
+sudo systemctl enable caddy
 sudo systemctl restart caddy
 ```
 
-## 7. Router port forwarding
-Forward ports **80** and **443** to your Pi's local IP.
-Find Pi's local IP: `hostname -I`
+Caddy automatically provisions an HTTPS certificate via Let's Encrypt.
 
-## 8. Verify
-Visit `https://YOUR_SUBDOMAIN.duckdns.org` — should see the login page.
+---
+
+## 5. Port forward on your router
+
+Log into your router admin page (usually 192.168.1.1 or 192.168.0.1) and add:
+- Port **80** TCP → Pi's local IP
+- Port **443** TCP → Pi's local IP
+
+Find your Pi's local IP:
+```bash
+hostname -I
+```
+
+---
+
+## 6. Verify
+
+Visit `https://YOUR_SUBDOMAIN.duckdns.org` — you should see the login page.
+Share this URL with anyone you want to access the app.
+
+---
 
 ## Updating the app
+
 ```bash
-cd ~/NFL-AI-Agent
+cd ~/lineupiq
 git pull
-sudo systemctl restart lineupiq
+docker compose up -d --build
+```
+
+User accounts and data are stored in the `lineupiq_data` Docker volume and are unaffected by rebuilds.
+
+---
+
+## Adding a second app later
+
+Add a new service to a shared `docker-compose.yml` and add a new block to the Caddyfile:
+```
+otherapp.duckdns.org {
+    reverse_proxy localhost:9090
+}
 ```

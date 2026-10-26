@@ -1,0 +1,16 @@
+services:
+  lineupiq:
+    build: .
+    container_name: lineupiq
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - lineupiq_data:/app/data
+    env_file:
+      - .env
+    environment:
+      - SECURE_COOKIES=true
+
+volumes:
+  lineupiq_data:
