@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 PLAYER_MODEL  = "claude-haiku-4-5-20251001"   # High-volume per-player summaries
 MATCHUP_MODEL = "claude-haiku-4-5-20251001"   # One per league per week
 
-PLAYER_MAX_TOKENS  = 600   # enough for complete sentences
+PLAYER_MAX_TOKENS  = 200   # 2-3 sentences
 MATCHUP_MAX_TOKENS = 400   # 3-4 sentences
 
 
@@ -155,22 +155,9 @@ def _build_prompt(
         )
     else:
         lines.append(
-            "\nTask: Write a concise premium fantasy football analysis of this player for the upcoming week "
-            "using the available news, injury information, model projection, floor/ceiling range, and model drivers. "
-            "Explain what the information means for the player's expected fantasy performance rather than simply repeating it. "
-            "Identify the most important factors influencing his projection, including any meaningful positive or negative "
-            "model drivers, changes in availability or role, matchup considerations, and relevant teammate situations. "
-            "Distinguish between information that increases confidence in the projection and information that creates "
-            "uncertainty or downside. "
-            "Give the reader a clear bottom-line expectation for the player this week: what should a fantasy manager "
-            "realistically expect, what could cause him to outperform or underperform, and how much confidence should "
-            "they have in the projection. "
-            "Use specific numbers and player names when useful. Be analytical and opinionated, but do not invent "
-            "information or make generic fantasy-football statements. "
-            "IMPORTANT: Only reference teammates, offensive schemes, or roster situations that are explicitly mentioned "
-            "in the injury or news data provided above. Do NOT rely on your training data knowledge of historical rosters — "
-            "rosters change every season and your knowledge may be outdated. If no teammate context is provided, do not speculate about it. "
-            "Do NOT include headers — just the summary text."
+            "\nTask: Write 2-3 sentences summarizing what a fantasy manager needs to know about this player this week. "
+            "Focus on the single most important factor driving or limiting his projection, note any injury or news risk, "
+            "and give a bottom-line start/sit confidence. Be direct and specific. No headers."
         )
 
     return "\n".join(lines)
