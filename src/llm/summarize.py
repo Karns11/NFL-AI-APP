@@ -27,7 +27,7 @@ PLAYER_MODEL  = "claude-haiku-4-5-20251001"   # High-volume per-player summaries
 MATCHUP_MODEL = "claude-haiku-4-5-20251001"   # One per league per week
 
 PLAYER_MAX_TOKENS  = 600   # enough for complete sentences
-MATCHUP_MAX_TOKENS = 800   # enough for complete paragraphs
+MATCHUP_MAX_TOKENS = 400   # 3-4 sentences
 
 
 def _extract_text(message) -> str:
@@ -355,26 +355,10 @@ def _build_matchup_prompt(
 
     lines += [
         "",
-        "Task: Write a premium fantasy football matchup analysis based on all of the roster, projection, "
-        "player-summary, matchup, injury, and variance information provided. "
-        "Your job is to interpret the data and tell the story of how this matchup is likely to play out — "
-        "not simply restate the numbers. "
-        "Explain why the model favors one team, identify the 2–3 players or situations that are most likely "
-        "to determine the outcome, and highlight any meaningful advantages or vulnerabilities on either roster. "
-        "Pay particular attention to players whose projections, floor/ceiling ranges, injuries, usage, or matchup "
-        "conditions create meaningful leverage or could cause the result to deviate from the projection. "
-        "Discuss the most important opponent threats and explain what would have to happen for the projected "
-        "outcome to change. "
-        "Incorporate relevant player-level insights, but prioritize the information that actually matters to "
-        "this matchup. "
-        "If there is a meaningful start/sit or bench decision, call it out clearly and explain why. "
-        "End with a confident prediction of the winner and the primary reason you believe they will win. "
-        "Use specific player names and relevant numbers throughout. "
-        "Be analytical, opinionated, and concise. Do not mechanically address every piece of available data, "
-        "and do not make generic fantasy-football statements. "
-        "Focus on the few insights that would actually help a fantasy manager make a better decision. "
-        "Do not restate information already visible in the individual player summaries — synthesize and elevate. "
-        "No headers — just the analysis text.",
+        "Task: Write a 3-4 sentence fantasy football matchup summary. "
+        "Identify the 1-2 players most likely to decide the outcome, note the key advantage or vulnerability "
+        "on either side, and end with a one-sentence winner prediction. "
+        "Be direct and specific — use player names and numbers. No headers, no bullet points.",
     ]
     return "\n".join(lines)
 
