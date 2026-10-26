@@ -27,7 +27,7 @@ PLAYER_MODEL  = "claude-haiku-4-5-20251001"   # High-volume per-player summaries
 MATCHUP_MODEL = "claude-haiku-4-5-20251001"   # One per league per week
 
 PLAYER_MAX_TOKENS  = 600   # enough for complete sentences
-MATCHUP_MAX_TOKENS = 500   # 5-6 paragraph-quality sentences
+MATCHUP_MAX_TOKENS = 800   # enough for complete paragraphs
 
 
 def _extract_text(message) -> str:
