@@ -108,7 +108,7 @@ def get_market_overview(season: int, week: int, position: str = "ALL") -> dict:
                 player_display_name,
                 position,
                 team,
-                MAX(headshot_url) AS headshot_url,
+                headshot_url,
                 week,
                 COALESCE(fantasy_points_ppr, 0.0) AS fp
             FROM player_stats_weekly
