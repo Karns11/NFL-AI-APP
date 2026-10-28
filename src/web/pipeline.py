@@ -208,6 +208,7 @@ def run_pipeline(
                 start_sit_alerts=report.start_sit_alerts,
                 my_sleeper_total=my_sleeper_total if my_sleeper_total_valid else None,
                 force_refresh=force_refresh_llm,
+                username=username,
             )
         else:
             matchup_summary = prior_matchup_summaries.get(report.league_name)

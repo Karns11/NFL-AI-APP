@@ -243,14 +243,15 @@ def summarize_matchup(
     start_sit_alerts: list[str],
     my_sleeper_total: float | None = None,
     force_refresh: bool = False,
+    username: str = "",
 ) -> str | None:
     """
     Generate or retrieve a cached AI narrative for a fantasy matchup.
-    Cached in news_summaries table using '__matchup__{league_name}' as player_name.
+    Cached in news_summaries table using '__matchup__{league_name}__{username}' as player_name.
     Returns None on failure.
     """
     init_db()
-    cache_key = f"__matchup__{league_name}"
+    cache_key = f"__matchup__{league_name}__{username}"
 
     if not force_refresh:
         cached = _get_cached_summary(cache_key, week, season)
