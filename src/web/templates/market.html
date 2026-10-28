@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LineupIQ — Player Market</title>
+  <style>
+    :root {
+      --bg:           #0a0a0f;
+      --surface:      #111118;
+      --surface-hi:   #18181f;
+      --border:       #22222e;
+      --border-faint: #191921;
+      --text-1:       #f0f0f5;
+      --text-2:       #636370;
+      --text-3:       #3a3a46;
+      --accent:       #4f8ef7;
+      --green:        #34c759;
+      --red:          #ff3b30;
+      --amber:        #ff9500;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ──────────────────────────────────── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: 0.1px; text-decoration: none; }
+    .nav-right  { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .nav-user   { font-size: 13px; color: var(--text-2); }
+    .nav-sep    { width: 1px; height: 16px; background: var(--border); }
+    .nav-link   { font-size: 13px; color: var(--text-2); text-decoration: none; }
+    .nav-link:hover { color: var(--text-1); }
+    .nav-link-active { color: var(--accent); }
+
+    /* ── Ticker bar ──────────────────────────── */
+    .ticker-wrap {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-faint);
+      overflow: hidden;
+      height: 32px;
+      display: flex;
+      align-items: center;
+    }
+    .ticker-track {
+      display: flex;
+      gap: 0;
+      white-space: nowrap;
+      animation: ticker-scroll 80s linear infinite;
+    }
+    .ticker-wrap:hover .ticker-track { animation-play-state: paused; }
+    @keyframes ticker-scroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 18px;
+      font-size: 12px;
+      border-right: 1px solid var(--border-faint);
+      cursor: pointer;
+    }
+    .ticker-item:hover { background: var(--surface-hi); }
+    .ticker-sym   { font-weight: 700; color: var(--text-1); letter-spacing: 0.5px; }
+    .ticker-price { color: var(--text-2); }
+    .ticker-chg.up   { color: var(--green); }
+    .ticker-chg.down { color: var(--red); }
+    .ticker-chg.flat { color: var(--text-3); }
+
+    /* ── Layout ──────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    .market-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    .market-header h1 { font-size: 20px; font-weight: 700; }
+    .market-header .week-label { font-size: 13px; color: var(--text-2); }
+
+    /* ── Movers cards ────────────────────────── */
+    .movers-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 640px) {
+      .movers-grid { grid-template-columns: 1fr; }
+    }
+    .movers-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .movers-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-2);
+      margin-bottom: 10px;
+    }
+    .mover-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 5px 6px;
+      margin: 0 -6px;
+    }
+    .mover-row:hover { background: var(--surface-hi); }
+    .mover-hs {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--surface-hi);
+    }
+    .mover-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mover-chg  { font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .mover-chg.up   { color: var(--green); }
+    .mover-chg.down { color: var(--red); }
+    .mover-grade { font-size: 12px; font-weight: 600; color: var(--accent); flex-shrink: 0; }
+
+    /* ── Controls ────────────────────────────── */
+    .market-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .tab-bar { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 5px 13px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-2);
+      background: transparent;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+    }
+    .tab-btn:hover { background: var(--surface-hi); color: var(--text-1); }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: transparent; }
+
+    .market-search-wrap { position: relative; margin-left: auto; }
+    .market-search {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: var(--text-1);
+      width: 220px;
+      outline: none;
+    }
+    .market-search:focus { border-color: var(--accent); }
+    .market-search::placeholder { color: var(--text-3); }
+    @media (max-width: 640px) {
+      .market-search { width: 100%; }
+      .market-search-wrap { margin-left: 0; width: 100%; }
+    }
+
+    /* ── Table ───────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    .market-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .market-table th {
+      text-align: left;
+      padding: 8px 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+    .market-table th:hover { color: var(--text-2); }
+    .market-table th.sort-asc::after  { content: " ↑"; color: var(--accent); }
+    .market-table th.sort-desc::after { content: " ↓"; color: var(--accent); }
+    .market-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border-faint);
+      white-space: nowrap;
+    }
+    .market-table tr:hover td { background: var(--surface); cursor: pointer; }
+    .market-table tr:last-child td { border-bottom: none; }
+
+    .td-hs { width: 28px; }
+    .td-hs img {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      background: var(--surface-hi);
+    }
+    .td-name  { font-weight: 500; color: var(--text-1); min-width: 130px; }
+    .td-ticker { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--text-2); }
+    .td-pos    { font-size: 11px; color: var(--text-3); }
+    .td-price  { font-weight: 600; font-size: 14px; text-align: right; }
+    .td-chg    { font-weight: 600; text-align: right; }
+    .td-chg.up   { color: var(--green); }
+    .td-chg.down { color: var(--red); }
+    .td-chg.flat { color: var(--text-3); }
+    .td-num    { color: var(--text-2); text-align: right; }
+    .td-hl     { font-size: 11px; color: var(--text-3); text-align: right; }
+    .td-grade  { text-align: center; font-weight: 600; font-size: 12px; }
+    .grade-ap  { color: var(--green); }
+    .grade-a   { color: var(--green); opacity: 0.75; }
+    .grade-b   { color: var(--amber); }
+    .grade-c   { color: var(--red); opacity: 0.75; }
+    .grade-d   { color: var(--red); }
+
+    /* ── Loading / empty states ──────────────── */
+    .state-msg {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-3);
+      font-size: 13px;
+    }
+    .spinner-wrap { display: flex; justify-content: center; padding: 48px; }
+    .spin {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .badge-new { font-size: 10px; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 5px; margin-left: 4px; font-weight: 700; letter-spacing: 0.3px; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="{{ url_for('main.index') }}" class="nav-brand">LineupIQ</a>
+  <a href="{{ url_for('main.stats') }}" class="nav-link">Stats</a>
+  <a href="{{ url_for('main.market') }}" class="nav-link nav-link-active">Market <span class="badge-new">BETA</span></a>
+  <div class="nav-right">
+    <span class="nav-user">{{ current_user.display_name }}</span>
+    <span class="nav-sep"></span>
+    <a href="{{ url_for('main.settings') }}" class="nav-link">Settings</a>
+    <a href="{{ url_for('main.logout') }}" class="nav-link">Sign out</a>
+  </div>
+</nav>
+
+<!-- Scrolling ticker -->
+<div class="ticker-wrap">
+  <div class="ticker-track" id="ticker-track">
+    <span style="padding:0 20px;font-size:12px;color:var(--text-3)">Loading market data…</span>
+  </div>
+</div>
+
+<div class="container">
+  <div class="market-header">
+    <h1>NFL Player Market</h1>
+    <span class="week-label">Week {{ current_week }} · {{ season }} Season</span>
+  </div>
+
+  <!-- Movers cards -->
+  <div class="movers-grid">
+    <div class="movers-card">
+      <div class="movers-title">▲ Top Gainers</div>
+      <div id="gainers-list"><div class="state-msg" style="padding:8px;font-size:12px">Loading…</div></div>
+    </div>
+    <div class="movers-card">
+      <div class="movers-title">▼ Top Losers</div>
+      <div id="losers-list"><div class="state-msg" style="padding:8px;font-size:12px">Loading…</div></div>
+    </div>
+    <div class="movers-card">
+      <div class="movers-title">◆ Most Consistent</div>
+      <div id="consistent-list"><div class="state-msg" style="padding:8px;font-size:12px">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="market-controls">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchPos('ALL', this)">All</button>
+      <button class="tab-btn" onclick="switchPos('QB', this)">QB</button>
+      <button class="tab-btn" onclick="switchPos('RB', this)">RB</button>
+      <button class="tab-btn" onclick="switchPos('WR', this)">WR</button>
+      <button class="tab-btn" onclick="switchPos('TE', this)">TE</button>
+    </div>
+    <div class="market-search-wrap">
+      <input type="text" class="market-search" id="market-search" placeholder="Search players…" oninput="filterTable()" autocomplete="off">
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table class="market-table" id="market-table">
+      <thead>
+        <tr>
+          <th style="width:36px"></th>
+          <th onclick="sortBy('name')">Player</th>
+          <th onclick="sortBy('ticker')" style="width:52px">Ticker</th>
+          <th onclick="sortBy('position')" style="width:44px">Pos</th>
+          <th onclick="sortBy('price')" class="sort-desc" style="width:80px">Price</th>
+          <th onclick="sortBy('change')" style="width:80px">Chg</th>
+          <th onclick="sortBy('change_pct')" style="width:64px">Chg %</th>
+          <th onclick="sortBy('season_avg_fp')" style="width:72px">Avg FP</th>
+          <th onclick="sortBy('games')" style="width:52px">Games</th>
+          <th onclick="sortBy('season_high')" style="width:110px">52W H / L</th>
+          <th onclick="sortBy('consistency')" style="width:56px">Grade</th>
+        </tr>
+      </thead>
+      <tbody id="market-tbody">
+        <tr><td colspan="11"><div class="spinner-wrap"><div class="spin"></div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const SEASON = {{ season }};
+const CURRENT_WEEK = {{ current_week }};
+
+let allPlayers = [];
+let currentPos = 'ALL';
+let sortCol = 'price';
+let sortDir = 'desc';
+
+async function loadMarket() {
+  try {
+    const resp = await fetch(`/api/market/overview?position=${currentPos}`);
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.message);
+    allPlayers = json.data.players || [];
+    renderMovers(json.data.gainers || [], json.data.losers || []);
+    renderTicker(allPlayers.slice(0, 30));
+    renderTable();
+  } catch (e) {
+    document.getElementById('market-tbody').innerHTML =
+      `<tr><td colspan="11"><div class="state-msg">Failed to load market data.</div></td></tr>`;
+  }
+}
+
+function renderTicker(players) {
+  const items = players.map(p => {
+    const cls = p.change > 0 ? 'up' : p.change < 0 ? 'down' : 'flat';
+    const arrow = p.change > 0 ? '▲' : p.change < 0 ? '▼' : '—';
+    const chg = p.change > 0 ? `+$${p.change.toFixed(2)}` : `$${p.change.toFixed(2)}`;
+    return `<span class="ticker-item" onclick="goPlayer('${p.player_id}')">
+      <span class="ticker-sym">${p.ticker}</span>
+      <span class="ticker-price">$${p.price.toFixed(2)}</span>
+      <span class="ticker-chg ${cls}">${arrow}${Math.abs(p.change_pct).toFixed(1)}%</span>
+    </span>`;
+  }).join('');
+  // Double the items so the scroll loops seamlessly
+  const track = document.getElementById('ticker-track');
+  track.innerHTML = items + items;
+}
+
+function renderMovers(gainers, losers) {
+  document.getElementById('gainers-list').innerHTML =
+    gainers.length ? gainers.map(p => moverRow(p, 'up', `+${p.change_pct.toFixed(1)}%`)).join('') :
+    '<div class="state-msg" style="padding:6px;font-size:12px">—</div>';
+
+  document.getElementById('losers-list').innerHTML =
+    losers.length ? losers.map(p => moverRow(p, 'down', `${p.change_pct.toFixed(1)}%`)).join('') :
+    '<div class="state-msg" style="padding:6px;font-size:12px">—</div>';
+
+  // Most consistent: A+ players, sorted by price
+  const consistent = allPlayers.filter(p => p.consistency === 'A+').slice(0, 5);
+  document.getElementById('consistent-list').innerHTML =
+    consistent.length ? consistent.map(p => moverRow(p, 'grade', p.consistency)).join('') :
+    '<div class="state-msg" style="padding:6px;font-size:12px">—</div>';
+}
+
+function moverRow(p, type, label) {
+  const cls = type === 'up' ? 'up' : type === 'down' ? 'down' : 'grade';
+  const labelEl = cls === 'grade'
+    ? `<span class="mover-grade">${label}</span>`
+    : `<span class="mover-chg ${cls}">${label}</span>`;
+  return `<div class="mover-row" onclick="goPlayer('${p.player_id}')">
+    <img class="mover-hs" src="${p.headshot_url || ''}" onerror="this.style.display='none'" alt="">
+    <span class="mover-name">${p.name}</span>
+    ${labelEl}
+  </div>`;
+}
+
+function renderTable() {
+  const query = document.getElementById('market-search').value.toLowerCase();
+  let rows = allPlayers.filter(p => {
+    if (currentPos !== 'ALL' && p.position !== currentPos) return false;
+    if (query && !p.name.toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  rows.sort((a, b) => {
+    let av = a[sortCol], bv = b[sortCol];
+    if (sortCol === 'consistency') {
+      const order = {'A+':0,'A':1,'B':2,'C':3,'D':4,'—':5};
+      av = order[av] ?? 5; bv = order[bv] ?? 5;
+    }
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  if (!rows.length) {
+    document.getElementById('market-tbody').innerHTML =
+      `<tr><td colspan="11"><div class="state-msg">No players found.</div></td></tr>`;
+    return;
+  }
+
+  document.getElementById('market-tbody').innerHTML = rows.map((p, i) => {
+    const chgCls = p.change > 0 ? 'up' : p.change < 0 ? 'down' : 'flat';
+    const chgArrow = p.change > 0 ? '▲' : p.change < 0 ? '▼' : '';
+    const chgStr = p.change > 0 ? `+$${p.change.toFixed(2)}` : `$${p.change.toFixed(2)}`;
+    const chgPctStr = p.change_pct > 0 ? `+${p.change_pct.toFixed(1)}%` : `${p.change_pct.toFixed(1)}%`;
+    const gradeCls = {
+      'A+': 'grade-ap', 'A': 'grade-a', 'B': 'grade-b', 'C': 'grade-c', 'D': 'grade-d'
+    }[p.consistency] || '';
+    return `<tr onclick="goPlayer('${p.player_id}')">
+      <td class="td-hs"><img src="${p.headshot_url || ''}" alt="" onerror="this.style.display='none'"></td>
+      <td class="td-name">${p.name}</td>
+      <td class="td-ticker">${p.ticker}</td>
+      <td class="td-pos">${p.position}</td>
+      <td class="td-price">$${p.price.toFixed(2)}</td>
+      <td class="td-chg ${chgCls}">${chgArrow} ${chgStr}</td>
+      <td class="td-chg ${chgCls}">${chgPctStr}</td>
+      <td class="td-num">${p.season_avg_fp}</td>
+      <td class="td-num">${p.games}</td>
+      <td class="td-hl">$${p.season_high.toFixed(0)} / $${p.season_low.toFixed(0)}</td>
+      <td class="td-grade ${gradeCls}">${p.consistency}</td>
+    </tr>`;
+  }).join('');
+}
+
+function switchPos(pos, btn) {
+  currentPos = pos;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function filterTable() {
+  renderTable();
+}
+
+let sortTimeout;
+function sortBy(col) {
+  if (sortCol === col) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortCol = col;
+    sortDir = col === 'name' || col === 'ticker' || col === 'position' ? 'asc' : 'desc';
+  }
+  // Update header classes
+  document.querySelectorAll('.market-table th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+  });
+  const headers = {'name':1,'ticker':2,'position':3,'price':4,'change':5,'change_pct':6,'season_avg_fp':7,'games':8,'season_high':9,'consistency':10};
+  const idx = headers[col];
+  if (idx !== undefined) {
+    const th = document.querySelectorAll('.market-table th')[idx];
+    if (th) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  }
+  renderTable();
+}
+
+function goPlayer(playerId) {
+  window.location.href = `/market/player/${playerId}`;
+}
+
+loadMarket();
+</script>
+</body>
+</html>

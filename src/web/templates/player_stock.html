@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LineupIQ — Player Stock</title>
+  <style>
+    :root {
+      --bg:           #0a0a0f;
+      --surface:      #111118;
+      --surface-hi:   #18181f;
+      --border:       #22222e;
+      --border-faint: #191921;
+      --text-1:       #f0f0f5;
+      --text-2:       #636370;
+      --text-3:       #3a3a46;
+      --accent:       #4f8ef7;
+      --green:        #34c759;
+      --red:          #ff3b30;
+      --amber:        #ff9500;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ──────────────────────────────────── */
+    .nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 52px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .nav-brand  { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: 0.1px; text-decoration: none; }
+    .nav-right  { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+    .nav-user   { font-size: 13px; color: var(--text-2); }
+    .nav-sep    { width: 1px; height: 16px; background: var(--border); }
+    .nav-link   { font-size: 13px; color: var(--text-2); text-decoration: none; }
+    .nav-link:hover { color: var(--text-1); }
+    .nav-link-active { color: var(--accent); }
+
+    /* ── Breadcrumb ──────────────────────────── */
+    .breadcrumb {
+      padding: 10px 20px;
+      font-size: 12px;
+      color: var(--text-3);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .breadcrumb a { color: var(--text-2); text-decoration: none; }
+    .breadcrumb a:hover { color: var(--text-1); }
+    .breadcrumb span { margin: 0 5px; }
+
+    /* ── Layout ──────────────────────────────── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── Hero ────────────────────────────────── */
+    .hero {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .hero-hs {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--surface-hi);
+      flex-shrink: 0;
+    }
+    .hero-identity { flex: 1; }
+    .hero-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .hero-name    { font-size: 22px; font-weight: 700; }
+    .hero-ticker  { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--accent); background: rgba(79,142,247,0.12); padding: 2px 8px; border-radius: 5px; }
+    .hero-pos     { font-size: 13px; color: var(--text-2); }
+    .hero-price-row { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+    .hero-price   { font-size: 28px; font-weight: 700; }
+    .hero-chg     { font-size: 16px; font-weight: 600; }
+    .hero-chg.up   { color: var(--green); }
+    .hero-chg.down { color: var(--red); }
+    .hero-chg.flat { color: var(--text-3); }
+    .hero-week    { font-size: 12px; color: var(--text-3); }
+
+    /* ── Player search ───────────────────────── */
+    .player-search-wrap { position: relative; margin-left: auto; }
+    .player-search {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: var(--text-1);
+      width: 220px;
+      outline: none;
+    }
+    .player-search:focus { border-color: var(--accent); }
+    .player-search::placeholder { color: var(--text-3); }
+    .search-dropdown {
+      position: absolute;
+      top: 100%; left: 0;
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 4px;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .search-result {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .search-result:hover { background: var(--surface-hi); }
+    .sr-hs { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; background: var(--surface-hi); }
+    .sr-name { font-size: 13px; font-weight: 500; }
+    .sr-pos  { font-size: 11px; color: var(--text-3); margin-left: auto; }
+
+    /* ── Main two-column layout ──────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 780px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Chart panel ─────────────────────────── */
+    .chart-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .timeframe-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tf-btn {
+      padding: 4px 11px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
+      background: transparent;
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .tf-btn:hover { background: var(--surface-hi); color: var(--text-1); }
+    .tf-btn.active { background: var(--accent); color: #fff; border-color: transparent; }
+    .chart-container { position: relative; height: 280px; }
+
+    /* ── Stats box ───────────────────────────── */
+    .stats-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .stats-box-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-2);
+      margin-bottom: 14px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 12px; color: var(--text-2); }
+    .stat-value { font-size: 13px; font-weight: 600; }
+    .stat-value.up   { color: var(--green); }
+    .stat-value.down { color: var(--red); }
+    .grade-ap  { color: var(--green); }
+    .grade-a   { color: var(--green); opacity: 0.75; }
+    .grade-b   { color: var(--amber); }
+    .grade-c   { color: var(--red); opacity: 0.75; }
+    .grade-d   { color: var(--red); }
+
+    /* ── Agent bids ──────────────────────────── */
+    .agent-bids {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-faint);
+    }
+    .agent-bids-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 10px;
+    }
+    .agent-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .agent-name  { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: var(--text-2); }
+    .agent-bid   { font-size: 12px; font-weight: 600; }
+    .agent-bar-wrap { flex: 1; margin: 0 10px; height: 3px; background: var(--border); border-radius: 2px; }
+    .agent-bar   { height: 100%; background: var(--accent); border-radius: 2px; }
+
+    /* ── Bottom panels ───────────────────────── */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 640px) {
+      .bottom-grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-2);
+      margin-bottom: 14px;
+    }
+
+    /* News items */
+    .news-item { padding: 8px 0; border-bottom: 1px solid var(--border-faint); }
+    .news-item:last-child { border-bottom: none; }
+    .news-source { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-3); letter-spacing: 0.5px; }
+    .news-title  { font-size: 13px; color: var(--text-1); margin: 2px 0; }
+    .news-title a { color: var(--text-1); text-decoration: none; }
+    .news-title a:hover { color: var(--accent); }
+    .news-summary { font-size: 12px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* Analyst report */
+    .analyst-text { font-size: 13px; color: var(--text-2); line-height: 1.6; }
+    .analyst-placeholder { font-size: 12px; color: var(--text-3); }
+
+    /* ── Loading ─────────────────────────────── */
+    .spinner-wrap { display: flex; justify-content: center; padding: 48px; }
+    .spin {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-msg { text-align: center; padding: 32px 20px; color: var(--text-3); font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="{{ url_for('main.index') }}" class="nav-brand">LineupIQ</a>
+  <a href="{{ url_for('main.stats') }}" class="nav-link">Stats</a>
+  <a href="{{ url_for('main.market') }}" class="nav-link nav-link-active">Market</a>
+  <div class="nav-right">
+    <div class="player-search-wrap">
+      <input type="text" class="player-search" id="player-search"
+             placeholder="Switch player…" autocomplete="off"
+             oninput="onSearchInput()" onblur="hideDropdownDelayed()">
+      <div class="search-dropdown" id="search-dropdown" hidden></div>
+    </div>
+    <span class="nav-sep"></span>
+    <span class="nav-user">{{ current_user.display_name }}</span>
+    <span class="nav-sep"></span>
+    <a href="{{ url_for('main.settings') }}" class="nav-link">Settings</a>
+    <a href="{{ url_for('main.logout') }}" class="nav-link">Sign out</a>
+  </div>
+</nav>
+
+<div class="breadcrumb" id="breadcrumb">
+  <a href="{{ url_for('main.market') }}">Market</a>
+  <span>›</span>
+  <span id="bc-pos">—</span>
+  <span>›</span>
+  <span id="bc-name">Loading…</span>
+</div>
+
+<div class="container" id="main-container">
+  <div class="spinner-wrap"><div class="spin"></div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+const PLAYER_ID = '{{ player_id }}';
+const SEASON    = {{ season }};
+const CURRENT_WEEK = {{ current_week }};
+
+let playerData  = null;
+let priceChart  = null;
+let currentTF   = 'season'; // season | 3y | 5y
+
+async function loadPlayer(seasons) {
+  const resp = await fetch(`/api/market/player/${PLAYER_ID}/data?seasons=${seasons}`);
+  const json = await resp.json();
+  if (json.status !== 'ok') throw new Error(json.message);
+  return json.data;
+}
+
+async function init() {
+  try {
+    playerData = await loadPlayer(5);
+    renderPage();
+  } catch (e) {
+    document.getElementById('main-container').innerHTML =
+      `<div class="state-msg">Failed to load player data.<br><a href="/market" style="color:var(--accent)">← Back to Market</a></div>`;
+  }
+}
+
+function renderPage() {
+  const d = playerData;
+
+  // Breadcrumb
+  document.getElementById('bc-pos').textContent = d.position;
+  document.getElementById('bc-name').textContent = d.name;
+  document.title = `${d.name} — LineupIQ Market`;
+
+  const chgCls = d.price_change > 0 ? 'up' : d.price_change < 0 ? 'down' : 'flat';
+  const chgArrow = d.price_change > 0 ? '▲' : d.price_change < 0 ? '▼' : '';
+  const chgStr = d.price_change > 0 ? `+$${d.price_change.toFixed(2)} (+${d.price_change_pct.toFixed(1)}%)` : `$${d.price_change.toFixed(2)} (${d.price_change_pct.toFixed(1)}%)`;
+
+  const gradeCls = {'A+':'grade-ap','A':'grade-a','B':'grade-b','C':'grade-c','D':'grade-d'}[d.consistency] || '';
+
+  // Build agent bids HTML
+  const bids = d.agent_bids || {};
+  const bidMax = Math.max(...Object.values(bids), 1);
+  const agentRows = [
+    {name: 'MOMENTUM',    key: 'MOMENTUM',   desc: 'EWM of recent FP'},
+    {name: 'LAST WEEK',   key: 'LAST_WEEK',  desc: 'Last game FP'},
+    {name: 'SEASON AVG',  key: 'SEASON_AVG', desc: 'Full-season avg'},
+  ].map(a => {
+    const bid = bids[a.key] || 100;
+    const pct = Math.round((bid / Math.max(bidMax, 1)) * 100);
+    return `<div class="agent-row">
+      <span class="agent-name">${a.name}</span>
+      <div class="agent-bar-wrap"><div class="agent-bar" style="width:${pct}%"></div></div>
+      <span class="agent-bid">$${bid.toFixed(0)}</span>
+    </div>`;
+  }).join('');
+
+  // Build news HTML
+  const newsItems = (d.news || []).map(n => `
+    <div class="news-item">
+      <div class="news-source">${n.source || ''}</div>
+      <div class="news-title">${n.url ? `<a href="${n.url}" target="_blank" rel="noopener">${n.title}</a>` : n.title}</div>
+      ${n.summary ? `<div class="news-summary">${n.summary}</div>` : ''}
+    </div>`).join('');
+
+  document.getElementById('main-container').innerHTML = `
+    <div class="hero">
+      <img class="hero-hs" src="${d.headshot_url || ''}" alt="${d.name}" onerror="this.style.display='none'">
+      <div class="hero-identity">
+        <div class="hero-top">
+          <span class="hero-name">${d.name}</span>
+          <span class="hero-ticker">${d.ticker}</span>
+          <span class="hero-pos">${d.position} · ${d.team}</span>
+        </div>
+        <div class="hero-price-row">
+          <span class="hero-price" id="hero-price">$${d.current_price.toFixed(2)}</span>
+          <span class="hero-chg ${chgCls}" id="hero-chg">${chgArrow} ${chgStr}</span>
+          <span class="hero-week">Week ${CURRENT_WEEK} · ${SEASON}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="chart-panel">
+        <div class="timeframe-bar">
+          <button class="tf-btn active" onclick="switchTF('season', this)">This Season</button>
+          <button class="tf-btn" onclick="switchTF('3y', this)">3 Seasons</button>
+          <button class="tf-btn" onclick="switchTF('5y', this)">5 Seasons</button>
+        </div>
+        <div class="chart-container">
+          <canvas id="price-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="stats-box">
+        <div class="stats-box-title">Key Statistics</div>
+        <div class="stat-row">
+          <span class="stat-label">Current Price</span>
+          <span class="stat-value">$${d.current_price.toFixed(2)}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Week Change</span>
+          <span class="stat-value ${chgCls}">${chgArrow} ${chgStr}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">52-Wk High</span>
+          <span class="stat-value">$${d.season_high != null ? d.season_high.toFixed(2) : '—'}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">52-Wk Low</span>
+          <span class="stat-value">$${d.season_low != null ? d.season_low.toFixed(2) : '—'}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Season Avg FP</span>
+          <span class="stat-value">${d.season_avg_fp != null ? d.season_avg_fp + ' pts' : '—'}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Games Played</span>
+          <span class="stat-value">${d.games}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Consistency</span>
+          <span class="stat-value ${gradeCls}">${d.consistency}</span>
+        </div>
+
+        <div class="agent-bids">
+          <div class="agent-bids-title">Strategy Agents</div>
+          ${agentRows}
+          <div style="font-size:10px;color:var(--text-3);margin-top:8px">
+            Clearing price = weighted avg of agent bids
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-grid">
+      <div class="panel">
+        <div class="panel-title">Recent News</div>
+        ${newsItems || '<div class="state-msg" style="padding:16px">No recent news found.</div>'}
+      </div>
+      <div class="panel">
+        <div class="panel-title">AI Analyst Report</div>
+        <div class="analyst-placeholder">
+          Run your weekly report from the <a href="/" style="color:var(--accent)">Dashboard</a>
+          to unlock the AI analyst report and BUY/HOLD/SELL rating for this player.
+        </div>
+      </div>
+    </div>
+  `;
+
+  renderChart();
+}
+
+function getChartData(tf) {
+  if (!playerData) return {labels: [], prices: [], fps: []};
+  const series = playerData.series || [];
+  const seasons = [...new Set(series.map(s => s.season))].sort();
+
+  let filtered;
+  if (tf === 'season') {
+    filtered = series.filter(s => s.season === SEASON);
+  } else if (tf === '3y') {
+    const cutoff = SEASON - 2;
+    filtered = series.filter(s => s.season >= cutoff);
+  } else {
+    filtered = series; // all (up to 5 seasons)
+  }
+
+  const labels = [];
+  const prices = [];
+  const fps    = [];
+
+  let prevSeason = null;
+  for (const pt of filtered) {
+    if (prevSeason !== null && pt.season !== prevSeason) {
+      // Season gap
+      labels.push(null);
+      prices.push(null);
+      fps.push(null);
+    }
+    const yy = String(pt.season).slice(2);
+    labels.push(`'${yy} W${pt.week}`);
+    prices.push(pt.price);
+    fps.push(pt.fp);
+    prevSeason = pt.season;
+  }
+
+  return {labels, prices, fps};
+}
+
+function renderChart() {
+  const {labels, prices, fps} = getChartData(currentTF);
+  const ctx = document.getElementById('price-chart').getContext('2d');
+
+  if (priceChart) {
+    priceChart.destroy();
+  }
+
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Price',
+          data: prices,
+          borderColor: '#4f8ef7',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointBackgroundColor: '#4f8ef7',
+          pointHoverRadius: 5,
+          tension: 0.3,
+          spanGaps: false,
+          fill: {
+            target: 'origin',
+            above: 'rgba(79,142,247,0.05)',
+          },
+        },
+        {
+          label: 'Weekly FP (×5)',
+          data: fps.map(v => v != null ? Math.max(1, Math.min(200, v * 5)) : null),
+          borderColor: 'rgba(255,255,255,0.12)',
+          borderWidth: 0,
+          pointRadius: 3,
+          pointBackgroundColor: 'rgba(255,255,255,0.20)',
+          pointHoverRadius: 4,
+          tension: 0,
+          spanGaps: false,
+          fill: false,
+          showLine: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#18181f',
+          borderColor: '#22222e',
+          borderWidth: 1,
+          titleColor: '#f0f0f5',
+          bodyColor: '#636370',
+          callbacks: {
+            title: items => items[0]?.label || '',
+            label: item => {
+              if (item.datasetIndex === 0) return ` Price: $${item.raw != null ? item.raw.toFixed(2) : '—'}`;
+              const fpRaw = fps[item.dataIndex];
+              return ` Raw FP: ${fpRaw != null ? fpRaw.toFixed(1) : '—'} pts`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#3a3a46',
+            maxTicksLimit: 8,
+            maxRotation: 0,
+            autoSkip: true,
+          },
+          grid: { color: 'rgba(34,34,46,0.6)' },
+        },
+        y: {
+          ticks: {
+            color: '#636370',
+            callback: v => `$${v}`,
+          },
+          grid: { color: 'rgba(34,34,46,0.6)' },
+        },
+      },
+    },
+  });
+}
+
+function switchTF(tf, btn) {
+  currentTF = tf;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderChart();
+}
+
+// ── Player search ──────────────────────────────────────────────────────────
+
+let searchTimer;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  const q = document.getElementById('player-search').value.trim();
+  if (q.length < 2) { hideDropdown(); return; }
+  searchTimer = setTimeout(() => runSearch(q), 220);
+}
+
+async function runSearch(q) {
+  try {
+    const resp = await fetch(`/api/market/search?q=${encodeURIComponent(q)}`);
+    const json = await resp.json();
+    if (json.status !== 'ok') { hideDropdown(); return; }
+    const results = json.data.slice(0, 6);
+    if (!results.length) { hideDropdown(); return; }
+    const dd = document.getElementById('search-dropdown');
+    dd.innerHTML = results.map(p => `
+      <div class="search-result" onclick="goPlayer('${p.player_id}')">
+        <img class="sr-hs" src="${p.headshot_url || ''}" alt="" onerror="this.style.display='none'">
+        <span class="sr-name">${p.name}</span>
+        <span class="sr-pos">${p.position}</span>
+      </div>`).join('');
+    dd.hidden = false;
+  } catch (e) {
+    hideDropdown();
+  }
+}
+
+function hideDropdown() {
+  document.getElementById('search-dropdown').hidden = true;
+}
+
+function hideDropdownDelayed() {
+  setTimeout(hideDropdown, 200);
+}
+
+function goPlayer(playerId) {
+  window.location.href = `/market/player/${playerId}`;
+}
+
+init();
+</script>
+</body>
+</html>

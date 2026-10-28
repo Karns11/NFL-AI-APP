@@ -427,6 +427,80 @@ def api_stats_defense():
         return jsonify({"status": "error", "message": "Query failed"}), 500
 
 
+# ── Market routes ────────────────────────────────────────────────────────────
+
+@bp.route("/market")
+@login_required
+def market():
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    return render_template("market.html", season=season, current_week=current_week)
+
+
+@bp.route("/market/player/<player_id>")
+@login_required
+def player_stock(player_id):
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    return render_template("player_stock.html",
+                           player_id=player_id,
+                           season=season,
+                           current_week=current_week)
+
+
+@bp.route("/api/market/overview")
+@login_required
+def api_market_overview():
+    from src.market.prices import get_market_overview
+    season = _CURRENT_SEASON
+    current_week = get_current_week(season)
+    position = request.args.get("position", "ALL").upper()
+    if position not in ("ALL", "QB", "RB", "WR", "TE"):
+        position = "ALL"
+    try:
+        data = get_market_overview(season, current_week, position)
+        return jsonify({"status": "ok", "data": data})
+    except Exception as e:
+        logger.error(f"Market overview failed: {e}")
+        return jsonify({"status": "error", "message": "Query failed"}), 500
+
+
+@bp.route("/api/market/player/<player_id>/data")
+@login_required
+def api_market_player_data(player_id):
+    from src.market.prices import get_player_price_history
+    from src.news.rss_fetcher import get_player_news
+    season = _CURRENT_SEASON
+    try:
+        num_seasons = int(request.args.get("seasons", 3))
+        num_seasons = max(1, min(5, num_seasons))
+    except (TypeError, ValueError):
+        num_seasons = 3
+
+    try:
+        price_data = get_player_price_history(player_id, season, num_seasons)
+        if not price_data:
+            return jsonify({"status": "error", "message": "Player not found"}), 404
+        news = []
+        try:
+            news = get_player_news(price_data.get("name", ""), max_items=5, hours_back=168)
+        except Exception:
+            pass
+        return jsonify({"status": "ok", "data": {**price_data, "news": news}})
+    except Exception as e:
+        logger.error(f"Market player data failed for {player_id}: {e}")
+        return jsonify({"status": "error", "message": "Query failed"}), 500
+
+
+@bp.route("/api/market/search")
+@login_required
+def api_market_search():
+    from src.stats.trends import search_players
+    query = request.args.get("q", "").strip()
+    data = search_players(query, _CURRENT_SEASON)
+    return jsonify({"status": "ok", "data": data})
+
+
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
 @bp.route("/api/refresh", methods=["POST"])
