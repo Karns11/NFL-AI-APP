@@ -253,8 +253,26 @@
     .news-summary { font-size: 12px; color: var(--text-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
     /* Analyst report */
-    .analyst-text { font-size: 13px; color: var(--text-2); line-height: 1.6; }
-    .analyst-placeholder { font-size: 12px; color: var(--text-3); }
+    .analyst-placeholder { font-size: 12px; color: var(--text-3); line-height: 1.6; }
+    .analyst-rating-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .rating-pill {
+      font-size: 13px; font-weight: 800; letter-spacing: 1px;
+      padding: 4px 14px; border-radius: 20px;
+    }
+    .rating-pill.buy  { background: rgba(52,199,89,0.15);  color: var(--green); border: 1px solid rgba(52,199,89,0.3); }
+    .rating-pill.hold { background: rgba(255,149,0,0.15);  color: var(--amber); border: 1px solid rgba(255,149,0,0.3); }
+    .rating-pill.sell { background: rgba(255,59,48,0.15);  color: var(--red);   border: 1px solid rgba(255,59,48,0.3); }
+    .analyst-proj { font-size: 12px; color: var(--text-2); }
+    .analyst-drivers { margin: 12px 0; display: flex; flex-direction: column; gap: 6px; }
+    .driver-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; padding: 4px 10px;
+      border-radius: 6px; width: fit-content;
+    }
+    .driver-chip.pos { background: rgba(52,199,89,0.10); color: var(--green); }
+    .driver-chip.neg { background: rgba(255,59,48,0.10);  color: var(--red); }
+    .analyst-narrative { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-top: 12px; }
+    .analyst-disclaimer { font-size: 10px; color: var(--text-3); margin-top: 10px; }
 
     /* ── Loading ─────────────────────────────── */
     .spinner-wrap { display: flex; justify-content: center; padding: 48px; }
@@ -445,15 +463,58 @@ function renderPage() {
       </div>
       <div class="panel">
         <div class="panel-title">AI Analyst Report</div>
-        <div class="analyst-placeholder">
-          Run your weekly report from the <a href="/" style="color:var(--accent)">Dashboard</a>
-          to unlock the AI analyst report and BUY/HOLD/SELL rating for this player.
-        </div>
+        ${renderAnalyst(d.analyst, d.season_avg_fp)}
       </div>
     </div>
   `;
 
   renderChart();
+}
+
+function renderAnalyst(analyst, seasonAvgFp) {
+  if (!analyst || !analyst.has_data) {
+    return `<div class="analyst-placeholder">
+      Run your weekly report from the <a href="/" style="color:var(--accent)">Dashboard</a>
+      to unlock the AI analyst report and BUY/HOLD/SELL rating for this player.
+    </div>`;
+  }
+
+  const rating = analyst.rating || 'HOLD';
+  const ratingCls = {BUY: 'buy', HOLD: 'hold', SELL: 'sell'}[rating] || 'hold';
+  const ratingArrow = {BUY: '▲', HOLD: '■', SELL: '▼'}[rating] || '';
+
+  const projLine = analyst.predicted != null
+    ? `<span class="analyst-proj">Model projection: <strong>${analyst.predicted.toFixed(1)} pts</strong> · Week ${CURRENT_WEEK}</span>`
+    : '';
+
+  // SHAP → dollar chips (price_impact = |shap_val| × 5.0)
+  const posDrivers = (analyst.shap_positive || []).slice(0, 2).map(([feat, val]) => {
+    const label = feat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const dollars = (Math.abs(val) * 5).toFixed(2);
+    return `<div class="driver-chip pos">▲ ${label} +$${dollars}</div>`;
+  });
+  const negDrivers = (analyst.shap_negative || []).slice(0, 2).map(([feat, val]) => {
+    const label = feat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const dollars = (Math.abs(val) * 5).toFixed(2);
+    return `<div class="driver-chip neg">▼ ${label} -$${dollars}</div>`;
+  });
+  const driversHtml = [...posDrivers, ...negDrivers].length
+    ? `<div class="analyst-drivers">${[...posDrivers, ...negDrivers].join('')}</div>`
+    : '';
+
+  const narrative = analyst.llm_summary
+    ? `<div class="analyst-narrative">${analyst.llm_summary}</div>`
+    : '';
+
+  return `
+    <div class="analyst-rating-row">
+      <span class="rating-pill ${ratingCls}">${ratingArrow} ${rating}</span>
+      ${projLine}
+    </div>
+    ${driversHtml}
+    ${narrative}
+    <div class="analyst-disclaimer">Model estimate · Not financial advice · Based on your weekly report</div>
+  `;
 }
 
 function getChartData(tf) {
