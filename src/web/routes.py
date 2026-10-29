@@ -471,7 +471,6 @@ def api_market_player_data(player_id):
     from src.market.prices import get_player_price_history
     from src.news.rss_fetcher import get_player_news
     season = _CURRENT_SEASON
-    current_week = get_current_week(season)
     try:
         num_seasons = int(request.args.get("seasons", 3))
         num_seasons = max(1, min(5, num_seasons))
@@ -489,39 +488,7 @@ def api_market_player_data(player_id):
         except Exception:
             pass
 
-        # Phase 2: analyst data from the user's weekly report cache
-        analyst: dict = {"has_data": False}
-        sleeper_username = getattr(current_user, "sleeper_username", None)
-        if sleeper_username and price_data:
-            cached = report_cache.get(sleeper_username, current_week, season)
-            if cached:
-                player_name = price_data.get("name", "").lower()
-                for league in cached.leagues:
-                    for p in league.get("my_roster", []):
-                        if p.get("name", "").lower() == player_name:
-                            predicted = p.get("predicted")
-                            season_avg = price_data.get("season_avg_fp")
-                            rating = None
-                            if predicted is not None and season_avg:
-                                if predicted > season_avg * 1.10:
-                                    rating = "BUY"
-                                elif predicted < season_avg * 0.90:
-                                    rating = "SELL"
-                                else:
-                                    rating = "HOLD"
-                            analyst = {
-                                "has_data": True,
-                                "rating": rating,
-                                "predicted": predicted,
-                                "shap_positive": p.get("shap_positive", []),
-                                "shap_negative": p.get("shap_negative", []),
-                                "llm_summary": p.get("llm_summary"),
-                            }
-                            break
-                    if analyst["has_data"]:
-                        break
-
-        return jsonify({"status": "ok", "data": {**price_data, "news": news, "analyst": analyst}})
+        return jsonify({"status": "ok", "data": {**price_data, "news": news}})
     except Exception as e:
         logger.error(f"Market player data failed for {player_id}: {e}")
         return jsonify({"status": "error", "message": "Query failed"}), 500
