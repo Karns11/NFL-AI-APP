@@ -274,7 +274,7 @@
 <nav class="nav">
   <a href="{{ url_for('main.index') }}" class="nav-brand">LineupIQ</a>
   <a href="{{ url_for('main.stats') }}" class="nav-link">Stats</a>
-  <a href="{{ url_for('main.market') }}" class="nav-link nav-link-active">Market</a>
+  <a href="{{ url_for('main.market') }}" class="nav-link nav-link-active">Stock Exchange</a>
   <div class="nav-right">
     <div class="player-search-wrap">
       <input type="text" class="player-search" id="player-search"
@@ -291,7 +291,7 @@
 </nav>
 
 <div class="breadcrumb" id="breadcrumb">
-  <a href="{{ url_for('main.market') }}">Market</a>
+  <a href="{{ url_for('main.market') }}">Stock Exchange</a>
   <span>›</span>
   <span id="bc-pos">—</span>
   <span>›</span>
@@ -325,7 +325,7 @@ async function init() {
     renderPage();
   } catch (e) {
     document.getElementById('main-container').innerHTML =
-      `<div class="state-msg">Failed to load player data.<br><a href="/market" style="color:var(--accent)">← Back to Market</a></div>`;
+      `<div class="state-msg">Failed to load player data.<br><a href="/market" style="color:var(--accent)">← Back to Stock Exchange</a></div>`;
   }
 }
 
@@ -335,7 +335,7 @@ function renderPage() {
   // Breadcrumb
   document.getElementById('bc-pos').textContent = d.position;
   document.getElementById('bc-name').textContent = d.name;
-  document.title = `${d.name} — LineupIQ Market`;
+  document.title = `${d.name} — LineupIQ Stock Exchange`;
 
   const chgCls = d.price_change > 0 ? 'up' : d.price_change < 0 ? 'down' : 'flat';
   const chgArrow = d.price_change > 0 ? '▲' : d.price_change < 0 ? '▼' : '';

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LineupIQ — Player Market</title>
+  <title>LineupIQ — Stock Exchange</title>
   <style>
     :root {
       --bg:           #0a0a0f;
@@ -267,7 +267,7 @@
 <nav class="nav">
   <a href="{{ url_for('main.index') }}" class="nav-brand">LineupIQ</a>
   <a href="{{ url_for('main.stats') }}" class="nav-link">Stats</a>
-  <a href="{{ url_for('main.market') }}" class="nav-link nav-link-active">Market <span class="badge-new">BETA</span></a>
+  <a href="{{ url_for('main.market') }}" class="nav-link nav-link-active">Stock Exchange <span class="badge-new">BETA</span></a>
   <div class="nav-right">
     <span class="nav-user">{{ current_user.display_name }}</span>
     <span class="nav-sep"></span>
@@ -285,7 +285,7 @@
 
 <div class="container">
   <div class="market-header">
-    <h1>NFL Player Market</h1>
+    <h1>NFL Player Stock Exchange</h1>
     <span class="week-label">Week {{ current_week }} · {{ season }} Season</span>
   </div>
 
