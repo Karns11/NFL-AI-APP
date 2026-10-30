@@ -190,7 +190,8 @@ def summarize_player(
     init_db()
 
     if not force_refresh:
-        cached = _get_cached_summary(player_name, week, season)
+        current_status = injury_record.get("status") if injury_record else None
+        cached = _get_cached_summary(player_name, week, season, current_injury_status=current_status)
         if cached:
             logger.debug(f"  Using cached summary for {player_name}")
             return cached
@@ -371,18 +372,31 @@ def _fallback_summary(player_name: str, injury_record: dict | None) -> str:
         return f"{player_name} is listed as {status} with a {injury} concern. Expect to play."
 
 
-def _get_cached_summary(player_name: str, week: int, season: int) -> str | None:
+def _get_cached_summary(
+    player_name: str,
+    week: int,
+    season: int,
+    current_injury_status: str | None = None,
+) -> str | None:
     with get_conn() as conn:
         row = conn.execute(
             """
-            SELECT summary_text FROM news_summaries
+            SELECT summary_text, injury_status FROM news_summaries
             WHERE lower(player_name) LIKE lower(?)
               AND week = ? AND season = ?
             ORDER BY summarized_at DESC LIMIT 1
             """,
             (f"%{player_name}%", week, season),
         ).fetchone()
-    return row["summary_text"] if row else None
+    if not row:
+        return None
+    # Invalidate cache when injury status has changed since the summary was generated
+    # (e.g. cached as healthy before a Questionable designation was scraped)
+    cached_status = (row["injury_status"] or "").upper()
+    live_status   = (current_injury_status or "").upper()
+    if cached_status != live_status:
+        return None
+    return row["summary_text"]
 
 
 def _save_summary(

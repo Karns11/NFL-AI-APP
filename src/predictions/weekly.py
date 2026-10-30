@@ -196,6 +196,13 @@ def build_full_league_report(
         injury_status = injury.get("status") if injury else info.get("injury_status")
         injury_type = injury.get("injury") if injury else None
 
+        # When the injury DB has no record but Sleeper reports a status, build a
+        # synthetic record so the LLM prompt reflects the real designation instead
+        # of falling through to "Not listed on injury report (healthy)".
+        injury_record_for_llm = injury
+        if injury is None and injury_status:
+            injury_record_for_llm = {"status": injury_status, "injury": injury_type or ""}
+
         # LLM summary (starters only)
         llm_summary = None
         if use_llm and position in MODEL_POSITIONS and name:
@@ -208,7 +215,7 @@ def build_full_league_report(
             llm_summary = summarize_player(
                 player_name=name, week=week, season=season,
                 position=position, team=team,
-                injury_record=injury,
+                injury_record=injury_record_for_llm,
                 news_items=news_items,
                 teammate_injuries=teammate_injuries,
                 on_bye=on_bye,
