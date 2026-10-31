@@ -805,17 +805,23 @@ document.addEventListener('click', e => {
 });
 
 function doRefresh(withAI) {
-  const btn  = document.getElementById('btn-refresh-main');
-  const spin = document.getElementById('spin-refresh');
+  const btn      = document.getElementById('btn-refresh-main');
+  const spin     = document.getElementById('spin-refresh');
+  const origText = btn ? btn.childNodes[0].textContent.trim() : '';
 
   if (btn)  btn.disabled = true;
   if (spin) spin.style.display = 'inline-block';
+  if (withAI && btn) btn.childNodes[0].textContent = ' AI running (~2 min)…';
 
-  fetch(withAI ? '/api/refresh-full' : '/api/refresh', { method: 'POST' })
+  const ctrl    = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 5 * 60 * 1000);  // 5-min hard cap
+
+  fetch(withAI ? '/api/refresh-full' : '/api/refresh', { method: 'POST', signal: ctrl.signal })
     .then(r => r.json())
     .then(d => {
+      clearTimeout(timeout);
       if (d.status === 'ok') {
-        showToast(withAI ? 'Report updated with AI' : 'Report updated', 'ok');
+        showToast(withAI ? 'AI summaries generated — reloading…' : 'Report updated', 'ok');
         setTimeout(() => location.reload(), 800);
       } else if (d.status === 'limit') {
         showToast(d.message, 'err');
@@ -823,25 +829,41 @@ function doRefresh(withAI) {
         showToast('Error: ' + d.message, 'err');
       }
     })
-    .catch(() => showToast('Request failed', 'err'))
+    .catch(err => {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        showToast('Still running in background — refresh the page in a moment to see results', 'ok');
+      } else {
+        showToast('Connection lost — your report may still be generating. Refresh in a minute.', 'err');
+      }
+    })
     .finally(() => {
-      if (btn)  btn.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        if (withAI) btn.childNodes[0].textContent = origText + ' ';
+      }
       if (spin) spin.style.display = 'none';
     });
 }
 
 function doRefreshForce() {
-  const btn  = document.getElementById('btn-refresh-main');
-  const spin = document.getElementById('spin-refresh');
+  const btn      = document.getElementById('btn-refresh-main');
+  const spin     = document.getElementById('spin-refresh');
+  const origText = btn ? btn.childNodes[0].textContent.trim() : '';
 
   if (btn)  btn.disabled = true;
   if (spin) spin.style.display = 'inline-block';
+  if (btn)  btn.childNodes[0].textContent = ' Regenerating AI (~2 min)…';
 
-  fetch('/api/refresh-full-force', { method: 'POST' })
+  const ctrl    = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 5 * 60 * 1000);
+
+  fetch('/api/refresh-full-force', { method: 'POST', signal: ctrl.signal })
     .then(r => r.json())
     .then(d => {
+      clearTimeout(timeout);
       if (d.status === 'ok') {
-        showToast('AI summaries regenerated', 'ok');
+        showToast('AI summaries regenerated — reloading…', 'ok');
         setTimeout(() => location.reload(), 800);
       } else if (d.status === 'limit') {
         showToast(d.message, 'err');
@@ -849,9 +871,19 @@ function doRefreshForce() {
         showToast('Error: ' + d.message, 'err');
       }
     })
-    .catch(() => showToast('Request failed', 'err'))
+    .catch(err => {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        showToast('Still running in background — refresh the page in a moment to see results', 'ok');
+      } else {
+        showToast('Connection lost — your report may still be generating. Refresh in a minute.', 'err');
+      }
+    })
     .finally(() => {
-      if (btn)  btn.disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.childNodes[0].textContent = origText + ' ';
+      }
       if (spin) spin.style.display = 'none';
     });
 }
